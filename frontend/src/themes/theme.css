@@ -1,0 +1,122 @@
+/* ====== PrintFlow-3D 主题变量 ====== */
+
+/* 默认: 打印工坊 */
+:root,
+[data-theme="workshop"] {
+  --app-bg: #f5f7f5;
+  --app-card: #ffffff;
+  --app-input: #eef1ee;
+  --app-accent: #0d9488;
+  --app-accent-hover: #0f766e;
+  --app-accent-dim: #5f8b87;
+  --app-border: #d1d5db;
+  --app-border-light: #e5e7eb;
+  --app-text: #1f2937;
+  --app-text-dim: #6b7280;
+  /* badges - light tints */
+  --badge-success-bg: #dcfce7;
+  --badge-success-text: #15803d;
+  --badge-info-bg: #dbeafe;
+  --badge-info-text: #1d4ed8;
+  --badge-warning-bg: #fef3c7;
+  --badge-warning-text: #a16207;
+  --badge-danger-bg: #fee2e2;
+  --badge-danger-text: #b91c1c;
+  --badge-purple-bg: #f3e8ff;
+  --badge-purple-text: #7c3aed;
+  --badge-neutral-bg: #f3f4f6;
+  --badge-neutral-text: #4b5563;
+}
+
+/* 诡镇暗金 */
+[data-theme="dark-gold"] {
+  --app-bg: #0d0d0d;
+  --app-card: #1a1510;
+  --app-input: #12100d;
+  --app-accent: #d4af37;
+  --app-accent-hover: #ffd700;
+  --app-accent-dim: #8a7a5e;
+  --app-border: #8b6914;
+  --app-border-light: #5a4520;
+  --app-text: #d1d5db;
+  --app-text-dim: #9ca3af;
+  /* badges - dark translucent */
+  --badge-success-bg: rgba(22, 163, 74, 0.15);
+  --badge-success-text: #4ade80;
+  --badge-info-bg: rgba(37, 99, 235, 0.15);
+  --badge-info-text: #60a5fa;
+  --badge-warning-bg: rgba(217, 119, 6, 0.15);
+  --badge-warning-text: #fbbf24;
+  --badge-danger-bg: rgba(220, 38, 38, 0.15);
+  --badge-danger-text: #f87171;
+  --badge-purple-bg: rgba(147, 51, 234, 0.15);
+  --badge-purple-text: #c084fc;
+  --badge-neutral-bg: rgba(107, 114, 128, 0.15);
+  --badge-neutral-text: #9ca3af;
+}
+
+/* GitHub 浅色 */
+[data-theme="github-light"] {
+  --app-bg: #ffffff;
+  --app-card: #f6f8fa;
+  --app-input: #f6f8fa;
+  --app-accent: #0969da;
+  --app-accent-hover: #0550ae;
+  --app-accent-dim: #656d76;
+  --app-border: #d0d7de;
+  --app-border-light: #e8eaed;
+  --app-text: #1f2328;
+  --app-text-dim: #656d76;
+  /* badges - GitHub tinted */
+  --badge-success-bg: #dafbe1;
+  --badge-success-text: #116329;
+  --badge-info-bg: #ddf4ff;
+  --badge-info-text: #0969da;
+  --badge-warning-bg: #fff8c5;
+  --badge-warning-text: #9a6700;
+  --badge-danger-bg: #ffebe9;
+  --badge-danger-text: #cf222e;
+  --badge-purple-bg: #fbefff;
+  --badge-purple-text: #8250df;
+  --badge-neutral-bg: #f6f8fa;
+  --badge-neutral-text: #656d76;
+}
+
+/* 极简黑白 */
+[data-theme="mono-light"] {
+  --app-bg: #fafafa;
+  --app-card: #ffffff;
+  --app-input: #f5f5f5;
+  --app-accent: #171717;
+  --app-accent-hover: #404040;
+  --app-accent-dim: #737373;
+  --app-border: #d4d4d4;
+  --app-border-light: #e5e5e5;
+  --app-text: #171717;
+  --app-text-dim: #737373;
+  /* badges - subtle borders */
+  --badge-success-bg: #f0fdf4;
+  --badge-success-text: #166534;
+  --badge-info-bg: #eff6ff;
+  --badge-info-text: #1e40af;
+  --badge-warning-bg: #fffbeb;
+  --badge-warning-text: #92400e;
+  --badge-danger-bg: #fef2f2;
+  --badge-danger-text: #991b1b;
+  --badge-purple-bg: #faf5ff;
+  --badge-purple-text: #6b21a8;
+  --badge-neutral-bg: #f9fafb;
+  --badge-neutral-text: #52525b;
+}
+
+/* ====== 全局过渡 ====== */
+html {
+  transition: background 0.3s, color 0.3s;
+}
+
+/* 文本色补丁：跟随主题变量切换 */
+.text-gray-200 { color: var(--app-text) !important; }
+.text-gray-300 { color: var(--app-text) !important; }
+.text-gray-400 { color: var(--app-text-dim) !important; }
+.text-gray-500 { color: var(--app-text-dim) !important; }
+.text-gray-600 { color: var(--app-text-dim) !important; }
