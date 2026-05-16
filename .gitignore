@@ -17,6 +17,7 @@ frontend/dist/
 
 data/*.db
 data/images/
+data/logs/
 .env
 .DS_Store
 Thumbs.db

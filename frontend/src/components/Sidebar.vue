@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { Palette, Layers, Package, Settings, ChevronDown, Paintbrush, ShoppingBag, Boxes, SlidersHorizontal } from '@lucide/vue'
+import { Palette, Layers, Package, Settings, ChevronDown, Paintbrush, ShoppingBag, Boxes, SlidersHorizontal, FileText } from '@lucide/vue'
 import { useRoute } from 'vue-router'
 import { useTheme } from '../composables/useTheme'
 
@@ -19,7 +19,8 @@ const sysGroup = {
     { to: '/colors', label: '配色管理', icon: Palette },
     { to: '/filaments', label: '耗材管理', icon: Layers },
     { to: '/inventories', label: '库存管理', icon: Boxes },
-    { to: '/settings', label: '系统设置', icon: SlidersHorizontal },
+    { to: '/settings', label: '全局配置', icon: SlidersHorizontal },
+    { to: '/logs', label: '运行日志', icon: FileText, external: true },
   ],
 }
 
@@ -40,7 +41,7 @@ function toggleSys() {
   <aside class="w-60 flex-shrink-0 bg-dark-card border-r border-border-inner flex flex-col">
     <div class="p-5 border-b border-border-inner">
       <h1 class="text-xl font-serif text-gold-title tracking-wide">PrintFlow 3D</h1>
-      <p class="text-xs text-gold-muted mt-1">v1.3.0</p>
+      <p class="text-xs text-gold-muted mt-1">v1.4.0</p>
     </div>
     <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
       <!-- Top-level items -->
@@ -84,20 +85,23 @@ function toggleSys() {
           v-show="sysExpanded"
           class="mt-1 ml-2 space-y-1 border-l border-border-inner/50 pl-2"
         >
-          <router-link
+          <component
             v-for="item in sysGroup.items"
             :key="item.to"
-            :to="item.to"
+            :is="item.external ? 'a' : 'router-link'"
+            v-bind="item.external ? { href: item.to, target: '_blank' } : { to: item.to }"
             class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors"
             :class="
-              route.path.startsWith(item.to)
-                ? 'bg-gold/10 text-gold border border-border-main/30'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-dark-input'
+              item.external
+                ? 'text-gray-400 hover:text-gray-200 hover:bg-dark-input'
+                : route.path.startsWith(item.to)
+                  ? 'bg-gold/10 text-gold border border-border-main/30'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-dark-input'
             "
           >
             <component :is="item.icon" class="w-4 h-4" />
             {{ item.label }}
-          </router-link>
+          </component>
 
           <!-- Theme switcher -->
           <div class="px-3 py-2">

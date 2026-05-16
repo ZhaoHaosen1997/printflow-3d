@@ -1,8 +1,10 @@
 import re
+import time
 from datetime import datetime
 from decimal import Decimal
 from sqlalchemy.orm import Session
 from backend.models import Product
+from backend.services.logger_service import log_parser, log_parser_warn
 
 
 STATUS_MAP = {
@@ -19,12 +21,16 @@ ORDER_HEADER_RE = re.compile(
 
 def parse_order_text(text: str) -> list[dict]:
     """Parse 闲鱼 order text into structured data using regex rules."""
+    t0 = time.time()
     blocks = _split_blocks(text)
     results = []
     for block in blocks:
         order_data = _parse_single_block(block)
         if order_data and order_data.get("xianyu_order_id"):
             results.append(order_data)
+    elapsed = (time.time() - t0) * 1000
+    log_parser("解析完成", blocks=str(len(blocks)), results=str(len(results)),
+               elapsed_ms=f"{elapsed:.0f}")
     return results
 
 
@@ -272,6 +278,14 @@ def match_products(db: Session, orders: list[dict]) -> list[dict]:
                 actual = float(order["actual_amount"])
                 result["discount"] = max(total_bundle_price - actual, 0)
 
+        if result["matched"]:
+            log_parser("商品匹配", xianyu_name=order.get("product_name", ""),
+                       system_name=matched_product.name,
+                       product_id=str(result["matched_product_id"]),
+                       is_bundle=str(result["is_bundle"]))
+        elif order.get("product_name"):
+            log_parser_warn("未匹配商品", xianyu_name=order["product_name"])
+
         results.append(result)
 
     return results
@@ -294,6 +308,9 @@ def _fuzzy_match(name: str, products: list[Product]) -> Product | None:
             best_kw_score = score
             best_kw_product = p
     if best_kw_score >= 1:
+        log_parser("关键词命中", xianyu_name=name,
+                   product_name=best_kw_product.name,
+                   score=f"{best_kw_score}/{len(best_kw_product.search_keywords)}")
         return best_kw_product
 
     # ---- Phase 2: legacy fuzzy match ----

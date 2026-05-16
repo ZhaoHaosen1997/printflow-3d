@@ -16,7 +16,7 @@ const labels = {
 }
 
 const hints = {
-  shipping_fee: '卖家承担的运费成本，0 表示包邮',
+  shipping_fee: '卖家实际快递成本（利润计算时扣除）',
   service_fee_rate: '闲鱼平台服务费比例，如当前鱼小铺 1.6%',
   packaging_fee: '非合集订单的包装材料费',
   packaging_fee_bundle: '合集订单的包装材料费',
@@ -38,9 +38,11 @@ async function saveSetting(item) {
   saving.value = true
   saved.value = false
   try {
-    const storageValue = isPercent(item.key)
-      ? String(Number(item._editValue) / 100)
-      : item._editValue
+    const storageValue = String(
+      isPercent(item.key)
+        ? Number(item._editValue) / 100
+        : item._editValue
+    )
     const updated = await put(`/api/settings/${item.key}`, { value: storageValue })
     item.value = updated.value
     item._editValue = isPercent(updated.key) ? String(Number(updated.value) * 100) : updated.value
@@ -58,8 +60,8 @@ onMounted(fetchSettings)
   <div>
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h2 class="text-2xl font-serif text-gold-title">系统设置</h2>
-        <p class="text-sm text-gold-muted mt-1">全局配置项，新建订单时自动套用</p>
+        <h2 class="text-2xl font-serif text-gold-title">全局配置</h2>
+        <p class="text-sm text-gold-muted mt-1">新建订单时自动套用的默认值</p>
       </div>
       <div
         v-if="saved"

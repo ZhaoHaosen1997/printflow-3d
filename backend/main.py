@@ -9,12 +9,15 @@ from backend.routers.products import router as products_router
 from backend.routers.orders import router as orders_router
 from backend.routers.inventories import router as inventories_router
 from backend.routers.settings import router as settings_router
+from backend.routers.logs import router as logs_router
+from backend.middleware.logging_middleware import LoggingMiddleware
+from backend.services.logger_service import log_business
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMAGES_DIR = os.path.join(BASE_DIR, "data", "images")
 os.makedirs(IMAGES_DIR, exist_ok=True)
 
-app = FastAPI(title="PrintFlow-3D", version="1.3.0")
+app = FastAPI(title="PrintFlow-3D", version="1.4.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,12 +26,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_middleware(LoggingMiddleware)
+
 app.include_router(colors_router, prefix="/api")
 app.include_router(filaments_router, prefix="/api")
 app.include_router(products_router, prefix="/api")
 app.include_router(orders_router, prefix="/api")
 app.include_router(inventories_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
+app.include_router(logs_router, prefix="/api")
 
 app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
@@ -36,6 +42,7 @@ app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 @app.on_event("startup")
 def on_startup():
     init_db()
+    log_business("服务启动", "PrintFlow-3D", version="1.4.0")
 
 
 @app.get("/api/health")

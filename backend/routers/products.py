@@ -13,6 +13,7 @@ from backend.services.product_service import (
     calculate_recipe_cost, create_recipe, update_recipe, delete_recipe,
     set_default_recipe, sync_product_material_cost,
 )
+from backend.services.logger_service import log_business
 
 router = APIRouter(tags=["products"])
 
@@ -53,6 +54,7 @@ def create_product(data: ProductCreate, db: Session = Depends(get_db)):
 
     db.commit()
     db.refresh(product)
+    log_business("商品创建", product.name, category=product.category)
     return product
 
 
@@ -92,6 +94,7 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "商品不存在")
     product.status = "archived"
     db.commit()
+    log_business("商品归档", product.name)
     return MessageResponse(message=f"商品 '{product.name}' 已归档")
 
 

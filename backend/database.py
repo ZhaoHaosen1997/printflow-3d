@@ -122,7 +122,7 @@ def seed_settings(db):
     from backend.models import Setting
 
     defaults = [
-        ("shipping_fee", "0", "decimal", "默认运费（包邮为0）"),
+        ("shipping_fee", "0", "decimal", "卖家实际快递成本，利润计算时扣除"),
         ("service_fee_rate", "0.016", "decimal", "闲鱼服务费费率"),
         ("packaging_fee", "1.5", "decimal", "单品包装费"),
         ("packaging_fee_bundle", "2.0", "decimal", "合集包装费"),
@@ -133,8 +133,8 @@ def seed_settings(db):
     db.commit()
 
 
-def _add_column_safe(table: str, column: str, col_def: str):
-    """Add a column if it doesn't already exist (SQLite)."""
+def _add_column_safe(table: str, column: str, col_def: str) -> bool:
+    """Add a column if it doesn't already exist (SQLite). Returns True if added."""
     import sqlite3
     conn = sqlite3.connect(DB_PATH)
     try:
@@ -144,14 +144,20 @@ def _add_column_safe(table: str, column: str, col_def: str):
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}")
             conn.commit()
             print(f"Added column {table}.{column}")
+            return True
+        return False
     finally:
         conn.close()
 
 
 def init_db():
     from backend import models  # noqa: ensure all models loaded
+    from backend.services.logger_service import log_db
+    log_db("初始化", "创建/更新数据表结构")
     Base.metadata.create_all(bind=engine)
-    _add_column_safe("products", "search_keywords", "JSON")
+    added = _add_column_safe("products", "search_keywords", "JSON")
+    if added:
+        log_db("迁移", "products.search_keywords 列已添加")
     db = SessionLocal()
     try:
         seed_colors(db)

@@ -12,6 +12,7 @@ from backend.schemas import (
     MessageResponse,
 )
 from backend.services.parser_service import parse_order_text, match_products
+from backend.services.logger_service import log_business, log_parser, log_parser_warn, log_error
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -277,6 +278,8 @@ def create_order(data: OrderCreate, db: Session = Depends(get_db)):
         _sync_buyer_stats(db, buyer_id)
 
     order.buyer_nickname = order.buyer.nickname if order.buyer else None
+    log_business("订单创建", order_no, status=order.status,
+                 amount=str(order.actual_amount), items=str(len(data.items)), source=data.source)
     return order
 
 
@@ -352,6 +355,8 @@ def update_order(order_id: int, data: OrderUpdate, db: Session = Depends(get_db)
         _sync_buyer_stats(db, order.buyer_id)
 
     order.buyer_nickname = order.buyer.nickname if order.buyer else None
+    if old_status != order.status:
+        log_business("订单状态变更", order.order_no, detail=f"{old_status}→{order.status}")
     return order
 
 
@@ -374,6 +379,7 @@ def delete_order(order_id: int, db: Session = Depends(get_db)):
     if buyer_id:
         _sync_buyer_stats(db, buyer_id)
 
+    log_business("订单取消", order.order_no)
     return MessageResponse(message=f"订单 '{order.order_no}' 已取消")
 
 

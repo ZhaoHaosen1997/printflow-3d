@@ -6,6 +6,7 @@ from backend.schemas import (
     InventoryCreate, InventoryUpdate, InventoryListResponse, InventoryResponse,
     MessageResponse,
 )
+from backend.services.logger_service import log_business
 
 router = APIRouter(prefix="/inventories", tags=["inventories"])
 
@@ -74,12 +75,17 @@ def update_inventory(inventory_id: int, data: InventoryUpdate, db: Session = Dep
     if not inv:
         raise HTTPException(404, "库存记录不存在")
 
+    old_qty = inv.quantity
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(inv, key, value)
 
     db.commit()
     db.refresh(inv)
+    if "quantity" in update_data:
+        p = db.query(Product).filter(Product.id == inv.product_id).first()
+        log_business("库存调整", p.name if p else str(inv.product_id),
+                     detail=f"{old_qty}→{inv.quantity}")
     return inv
 
 

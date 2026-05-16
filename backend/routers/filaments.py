@@ -4,6 +4,7 @@ from backend.database import get_db
 from backend.models import Filament
 from backend.schemas import FilamentCreate, FilamentUpdate, FilamentResponse, MessageResponse
 from backend.services.product_service import update_filament_price
+from backend.services.logger_service import log_business
 
 router = APIRouter(prefix="/filaments", tags=["filaments"])
 
@@ -22,6 +23,8 @@ def create_filament(data: FilamentCreate, db: Session = Depends(get_db)):
     db.add(filament)
     db.commit()
     db.refresh(filament)
+    log_business("耗材创建", f"{filament.brand} {filament.material}",
+                 price=str(filament.price_per_kg))
     return filament
 
 
@@ -60,4 +63,5 @@ def delete_filament(filament_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "耗材不存在")
     filament.status = "archived"
     db.commit()
+    log_business("耗材归档", f"{filament.brand} {filament.material}")
     return MessageResponse(message=f"耗材 '{filament.brand} {filament.material}' 已归档")

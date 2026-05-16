@@ -9,6 +9,7 @@ const routes = [
   { path: '/paste-import', name: 'PasteImport', component: () => import('../views/PasteImport.vue') },
   { path: '/inventories', name: 'Inventories', component: () => import('../views/Inventories.vue') },
   { path: '/settings', name: 'Settings', component: () => import('../views/Settings.vue') },
+  { path: '/logs', name: 'LogViewer', component: () => import('../views/LogViewer.vue') },
 ]
 
 const router = createRouter({
