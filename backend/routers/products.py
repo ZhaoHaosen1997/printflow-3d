@@ -2,7 +2,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from backend.database import get_db
-from backend.models import Product, PrintRecipe, PrintRecipeFilament
+from backend.models import Product, PrintRecipe, PrintRecipeFilament, Inventory
 from backend.schemas import (
     ProductCreate, ProductUpdate, ProductResponse,
     PrintRecipeCreate, PrintRecipeUpdate, PrintRecipeResponse,
@@ -44,6 +44,9 @@ def create_product(data: ProductCreate, db: Session = Depends(get_db)):
     product = Product(**product_data)
     db.add(product)
     db.flush()
+
+    # Auto-create inventory record
+    db.add(Inventory(product_id=product.id, quantity=0, warning_threshold=5))
 
     if data.default_recipe:
         create_recipe(db, product.id, data.default_recipe)

@@ -3,9 +3,10 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from backend.database import get_db
-from backend.models import Order, OrderItem, Buyer, Product
+from backend.models import Order, OrderItem, Buyer, Product, Inventory
 from backend.schemas import (
     OrderCreate, OrderUpdate, OrderResponse, OrderListResponse,
+    PaginatedOrdersResponse,
     OrderItemCreate, OrderItemResponse,
     ParseRequest, ParseResponse, ParsedOrder, ParsedOrderItem,
     MessageResponse,
@@ -14,7 +15,7 @@ from backend.services.parser_service import parse_order_text, match_products
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
-TERMINAL_STATUSES = {"交易成功", "已取消", "退货"}
+TERMINAL_STATUSES = {"交易成功", "已取消", "退货", "已归档"}
 
 
 def _generate_order_no(db: Session) -> str:
@@ -97,30 +98,114 @@ def _fill_order_defaults(data: OrderCreate, db: Session):
                 break
         data.packaging_fee = s["packaging_fee_bundle"] if is_bundle else s["packaging_fee"]
 
+    if data.charity_fee_rate is None:
+        for item in data.items:
+            product = db.query(Product).filter(Product.id == item.product_id).first()
+            if product and product.charity_rate is not None:
+                data.charity_fee_rate = product.charity_rate
+                break
+
+    if data.charity_fee is None and data.charity_fee_rate is not None:
+        data.charity_fee = (data.actual_amount * data.charity_fee_rate).quantize(Decimal("0.01"))
+
+
+def _ensure_inventory(db: Session, product_id: int) -> Inventory:
+    """Get or create inventory record for a product."""
+    inv = db.query(Inventory).filter(Inventory.product_id == product_id).first()
+    if not inv:
+        inv = Inventory(product_id=product_id, quantity=0, warning_threshold=5)
+        db.add(inv)
+        db.flush()
+    return inv
+
+
+def _deduct_order_inventory(db: Session, order_items: list, db_products: dict):
+    """Deduct inventory for all items in a new order. Handles bundle expansion."""
+    for item_data in order_items:
+        pid = item_data.get("product_id") if isinstance(item_data, dict) else item_data.product_id
+        qty = item_data.get("quantity", 1) if isinstance(item_data, dict) else item_data.quantity
+        product = db_products.get(pid) or db.query(Product).filter(Product.id == pid).first()
+        if not product:
+            continue
+
+        if product.category == "bundle" and product.bundle_items:
+            # Token合集包：按固定子商品列表展开扣减
+            for child_id in product.bundle_items:
+                _ensure_inventory(db, child_id)
+                inv = db.query(Inventory).filter(Inventory.product_id == child_id).first()
+                inv.quantity = max(0, inv.quantity - qty)
+        elif product.category == "bundle":
+            # 自选合集：子商品已在 order_items 中逐项列出，合集自身不扣库存
+            continue
+        else:
+            _ensure_inventory(db, pid)
+            inv = db.query(Inventory).filter(Inventory.product_id == pid).first()
+            inv.quantity = max(0, inv.quantity - qty)
+
+
+def _restore_order_inventory(db: Session, order: Order):
+    """Restore inventory when an order is cancelled."""
+    for item in order.items:
+        product = db.query(Product).filter(Product.id == item.product_id).first()
+        if not product:
+            continue
+
+        if product.category == "bundle" and product.bundle_items:
+            for child_id in product.bundle_items:
+                inv = _ensure_inventory(db, child_id)
+                inv.quantity += item.quantity
+        elif product.category == "bundle":
+            # 自选合集：子商品已在 order_items 中逐项列出，合集自身不恢复库存
+            continue
+        else:
+            inv = _ensure_inventory(db, item.product_id)
+            inv.quantity += item.quantity
+
 
 # ============ Order CRUD ============
 
 
-@router.get("", response_model=list[OrderListResponse])
+@router.get("", response_model=PaginatedOrdersResponse)
 def list_orders(
     status: str | None = None,
     source: str | None = None,
     buyer_id: int | None = None,
-    limit: int = Query(50, ge=1, le=200),
+    xianyu_order_id: str | None = None,
+    product_id: int | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
-    q = db.query(Order)
+    q = db.query(Order).filter(Order.status != "已归档")
     if status:
         q = q.filter(Order.status == status)
     if source:
         q = q.filter(Order.source == source)
     if buyer_id:
         q = q.filter(Order.buyer_id == buyer_id)
+    if xianyu_order_id:
+        q = q.filter(Order.xianyu_order_id.like(f"%{xianyu_order_id}%"))
+    if product_id:
+        q = q.join(OrderItem, Order.id == OrderItem.order_id).filter(OrderItem.product_id == product_id)
+    if date_from:
+        try:
+            dt_from = datetime.fromisoformat(date_from)
+            q = q.filter(Order.order_time >= dt_from)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            dt_to = datetime.fromisoformat(date_to)
+            q = q.filter(Order.order_time <= dt_to)
+        except ValueError:
+            pass
+    total = q.count()
     orders = q.order_by(Order.order_time.desc(), Order.id.desc()).offset(offset).limit(limit).all()
     for o in orders:
         o.buyer_nickname = o.buyer.nickname if o.buyer else None
-    return orders
+    return {"items": orders, "total": total}
 
 
 @router.post("", response_model=OrderResponse, status_code=201)
@@ -145,6 +230,8 @@ def create_order(data: OrderCreate, db: Session = Depends(get_db)):
         packaging_fee=data.packaging_fee,
         service_fee=data.service_fee,
         service_fee_rate=data.service_fee_rate,
+        charity_fee=data.charity_fee or Decimal("0"),
+        charity_fee_rate=data.charity_fee_rate,
         province=data.province,
         notes=data.notes,
         source=data.source,
@@ -152,9 +239,16 @@ def create_order(data: OrderCreate, db: Session = Depends(get_db)):
     db.add(order)
     db.flush()
 
+    # Preload all products referenced in items
+    product_ids = [item.product_id for item in data.items]
+    db_products = {
+        p.id: p
+        for p in db.query(Product).filter(Product.id.in_(product_ids)).all()
+    }
+
     # Create order items with material cost snapshot
     for item_data in data.items:
-        product = db.query(Product).filter(Product.id == item_data.product_id).first()
+        product = db_products.get(item_data.product_id)
         oi = OrderItem(
             order_id=order.id,
             product_id=item_data.product_id,
@@ -165,12 +259,17 @@ def create_order(data: OrderCreate, db: Session = Depends(get_db)):
         )
         db.add(oi)
 
+    # Deduct inventory for non-cancelled orders
+    if order.status != "已取消":
+        _deduct_order_inventory(db, data.items, db_products)
+
     db.commit()
     db.refresh(order)
 
     if buyer_id:
         _sync_buyer_stats(db, buyer_id)
 
+    order.buyer_nickname = order.buyer.nickname if order.buyer else None
     return order
 
 
@@ -179,6 +278,7 @@ def get_order(order_id: int, db: Session = Depends(get_db)):
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(404, "订单不存在")
+    order.buyer_nickname = order.buyer.nickname if order.buyer else None
     return order
 
 
@@ -190,9 +290,32 @@ def update_order(order_id: int, data: OrderUpdate, db: Session = Depends(get_db)
 
     update_data = data.model_dump(exclude_unset=True)
     items_data = update_data.pop("items", None)
+    buyer_nickname = update_data.pop("buyer_nickname", None)
+    old_status = order.status
+
+    # Handle buyer update
+    if buyer_nickname is not None:
+        order.buyer_id = _upsert_buyer(db, buyer_nickname if buyer_nickname else None)
 
     for key, value in update_data.items():
         setattr(order, key, value)
+
+    # Inventory: handle status transitions to/from cancelled
+    new_status = order.status
+    if new_status == "已取消" and old_status not in ("已取消", "退货"):
+        _restore_order_inventory(db, order)
+    elif old_status in ("已取消", "退货") and new_status not in ("已取消", "退货"):
+        # Re-deduct when reactivating a cancelled order
+        product_ids = [item.product_id for item in order.items]
+        db_products = {
+            p.id: p
+            for p in db.query(Product).filter(Product.id.in_(product_ids)).all()
+        }
+        items_as_dicts = [
+            {"product_id": item.product_id, "quantity": item.quantity}
+            for item in order.items
+        ]
+        _deduct_order_inventory(db, items_as_dicts, db_products)
 
     # Set completed_time when entering a terminal status
     if order.status in TERMINAL_STATUSES and not order.completed_time:
@@ -221,6 +344,7 @@ def update_order(order_id: int, data: OrderUpdate, db: Session = Depends(get_db)
     if order.buyer_id:
         _sync_buyer_stats(db, order.buyer_id)
 
+    order.buyer_nickname = order.buyer.nickname if order.buyer else None
     return order
 
 
@@ -229,9 +353,15 @@ def delete_order(order_id: int, db: Session = Depends(get_db)):
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(404, "订单不存在")
+    prev_status = order.status
     order.status = "已取消"
     order.completed_time = datetime.now(timezone.utc).replace(tzinfo=None)
     buyer_id = order.buyer_id
+
+    # Restore inventory if the order was previously active (not already cancelled)
+    if prev_status not in ("已取消", "退货"):
+        _restore_order_inventory(db, order)
+
     db.commit()
 
     if buyer_id:

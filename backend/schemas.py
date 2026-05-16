@@ -152,6 +152,7 @@ class ProductBase(BaseModel):
     bundle_items: Optional[List[int]] = None
     colors: Optional[dict] = None
     contents: Optional[List[str]] = None
+    charity_rate: Optional[Decimal] = None
     status: str = "active"
 
 
@@ -169,6 +170,7 @@ class ProductUpdate(BaseModel):
     bundle_items: Optional[List[int]] = None
     colors: Optional[dict] = None
     contents: Optional[List[str]] = None
+    charity_rate: Optional[Decimal] = None
     status: Optional[str] = None
 
 
@@ -189,6 +191,7 @@ class ProductListResponse(BaseModel):
     price_single: Decimal
     price_bundle: Decimal
     material_cost: Decimal
+    charity_rate: Optional[Decimal] = None
     image: Optional[str] = None
     bundle_items: Optional[List[int]] = None
     status: str
@@ -232,6 +235,8 @@ class OrderCreate(BaseModel):
     packaging_fee: Optional[Decimal] = None
     service_fee: Optional[Decimal] = None
     service_fee_rate: Optional[Decimal] = None
+    charity_fee: Optional[Decimal] = None
+    charity_fee_rate: Optional[Decimal] = None
     province: Optional[str] = None
     notes: Optional[str] = None
     source: str = "manual"
@@ -240,6 +245,7 @@ class OrderCreate(BaseModel):
 
 class OrderUpdate(BaseModel):
     buyer_id: Optional[int] = None
+    buyer_nickname: Optional[str] = None
     status: Optional[str] = None
     total_amount: Optional[Decimal] = None
     discount: Optional[Decimal] = None
@@ -248,6 +254,8 @@ class OrderUpdate(BaseModel):
     packaging_fee: Optional[Decimal] = None
     service_fee: Optional[Decimal] = None
     service_fee_rate: Optional[Decimal] = None
+    charity_fee: Optional[Decimal] = None
+    charity_fee_rate: Optional[Decimal] = None
     province: Optional[str] = None
     notes: Optional[str] = None
     items: Optional[List[OrderItemCreate]] = None
@@ -258,6 +266,7 @@ class OrderResponse(BaseModel):
     order_no: str
     xianyu_order_id: Optional[str] = None
     buyer_id: Optional[int] = None
+    buyer_nickname: Optional[str] = None
     status: str
     order_time: Optional[datetime] = None
     ship_time: Optional[datetime] = None
@@ -269,6 +278,8 @@ class OrderResponse(BaseModel):
     packaging_fee: Decimal
     service_fee: Decimal
     service_fee_rate: Decimal
+    charity_fee: Decimal
+    charity_fee_rate: Optional[Decimal] = None
     province: Optional[str] = None
     notes: Optional[str] = None
     source: str
@@ -287,6 +298,7 @@ class OrderListResponse(BaseModel):
     buyer_nickname: Optional[str] = None
     status: str
     order_time: Optional[datetime] = None
+    completed_time: Optional[datetime] = None
     total_amount: Decimal
     discount: Decimal
     actual_amount: Decimal
@@ -294,6 +306,11 @@ class OrderListResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PaginatedOrdersResponse(BaseModel):
+    items: List[OrderListResponse]
+    total: int
 
 
 # ============ Parser ============
@@ -341,9 +358,33 @@ class ParseResponse(BaseModel):
 
 # ============ Inventories ============
 
+class InventoryCreate(BaseModel):
+    product_id: int
+    quantity: int = 0
+    warning_threshold: int = 5
+
+
+class InventoryUpdate(BaseModel):
+    quantity: Optional[int] = None
+    warning_threshold: Optional[int] = None
+
+
 class InventoryResponse(BaseModel):
     id: int
     product_id: int
+    quantity: int
+    warning_threshold: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class InventoryListResponse(BaseModel):
+    id: int
+    product_id: int
+    product_name: str
+    product_category: str
     quantity: int
     warning_threshold: int
     created_at: datetime

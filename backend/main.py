@@ -1,12 +1,20 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from backend.database import init_db
 from backend.routers.colors import router as colors_router
 from backend.routers.filaments import router as filaments_router
 from backend.routers.products import router as products_router
 from backend.routers.orders import router as orders_router
+from backend.routers.inventories import router as inventories_router
+from backend.routers.settings import router as settings_router
 
-app = FastAPI(title="PrintFlow-3D", version="1.1.0")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+IMAGES_DIR = os.path.join(BASE_DIR, "data", "images")
+os.makedirs(IMAGES_DIR, exist_ok=True)
+
+app = FastAPI(title="PrintFlow-3D", version="1.3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -19,6 +27,10 @@ app.include_router(colors_router, prefix="/api")
 app.include_router(filaments_router, prefix="/api")
 app.include_router(products_router, prefix="/api")
 app.include_router(orders_router, prefix="/api")
+app.include_router(inventories_router, prefix="/api")
+app.include_router(settings_router, prefix="/api")
+
+app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
 
 @app.on_event("startup")

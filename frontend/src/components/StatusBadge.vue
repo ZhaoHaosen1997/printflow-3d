@@ -16,6 +16,7 @@ const statusMap = {
   '交易成功':   { cls: 'badge-success', label: '交易成功' },
   '已取消':     { cls: 'badge-danger',  label: '已取消' },
   '退货':       { cls: 'badge-danger',  label: '退货' },
+  '已归档':     { cls: 'badge-neutral', label: '已归档' },
   // Order statuses (English — compat with old data)
   pending:      { cls: 'badge-warning', label: '待发货' },
   shipped:      { cls: 'badge-info',    label: '已发货' },

@@ -7,6 +7,8 @@ const routes = [
   { path: '/products', name: 'Products', component: () => import('../views/Products.vue') },
   { path: '/orders', name: 'Orders', component: () => import('../views/Orders.vue') },
   { path: '/paste-import', name: 'PasteImport', component: () => import('../views/PasteImport.vue') },
+  { path: '/inventories', name: 'Inventories', component: () => import('../views/Inventories.vue') },
+  { path: '/settings', name: 'Settings', component: () => import('../views/Settings.vue') },
 ]
 
 const router = createRouter({

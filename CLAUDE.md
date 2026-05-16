@@ -153,7 +153,7 @@ discount = total_amount - actual_amount（砍价金额，不计入成本，独�
 
 ---
 
-## UI 开发规范
+## 开发规范
 
 ### BAT 脚本
 - 必须纯 ASCII，不含中文，不加 `chcp 65001`（多数终端反而乱码）
@@ -169,6 +169,13 @@ discount = total_amount - actual_amount（砍价金额，不计入成本，独�
 
 ### DataTable 操作列
 - 不加固定宽度，`whitespace-nowrap` 让按钮横向排列
+
+### 推送 GitHub
+- 远程仓库：https://github.com/ZhaoHaosen1997/printflow-3d
+当用户说"帮我推送远程仓库 / 推送 github"时：
+1. `git add` 所有变更文件（不含 .env、node_modules、__pycache__、.venv）
+2. `git commit`，提交信息概括本轮改动要点（中文，一行）
+3. `git push origin master`
 
 ### 操作按钮五种风格（按语义选用）
 | 风格 | class | 适用场景 |

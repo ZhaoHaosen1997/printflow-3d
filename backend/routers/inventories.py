@@ -1,0 +1,97 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from backend.database import get_db
+from backend.models import Inventory, Product
+from backend.schemas import (
+    InventoryCreate, InventoryUpdate, InventoryListResponse, InventoryResponse,
+    MessageResponse,
+)
+
+router = APIRouter(prefix="/inventories", tags=["inventories"])
+
+
+def _ensure_inventory(db: Session, product_id: int) -> Inventory:
+    """Get or create inventory record for a product."""
+    inv = db.query(Inventory).filter(Inventory.product_id == product_id).first()
+    if not inv:
+        inv = Inventory(product_id=product_id, quantity=0, warning_threshold=5)
+        db.add(inv)
+        db.flush()
+    return inv
+
+
+def _deduct_inventory(db: Session, product_id: int, quantity: int):
+    """Deduct stock for a product. Auto-creates inventory record if missing."""
+    inv = _ensure_inventory(db, product_id)
+    inv.quantity = max(0, inv.quantity - quantity)
+
+
+def _add_inventory(db: Session, product_id: int, quantity: int):
+    """Add stock for a product. Auto-creates inventory record if missing."""
+    inv = _ensure_inventory(db, product_id)
+    inv.quantity += quantity
+
+
+@router.get("", response_model=list[InventoryListResponse])
+def list_inventories(db: Session = Depends(get_db)):
+    """List all active products with their inventory status."""
+    products = (
+        db.query(Product)
+        .filter(Product.status == "active", Product.category != "bundle")
+        .order_by(Product.category, Product.name)
+        .all()
+    )
+
+    result = []
+    for p in products:
+        inv = _ensure_inventory(db, p.id)
+        result.append({
+            "id": inv.id,
+            "product_id": p.id,
+            "product_name": p.name,
+            "product_category": p.category,
+            "quantity": inv.quantity,
+            "warning_threshold": inv.warning_threshold,
+            "created_at": inv.created_at,
+            "updated_at": inv.updated_at,
+        })
+
+    db.commit()
+    return result
+
+
+@router.get("/{inventory_id}", response_model=InventoryResponse)
+def get_inventory(inventory_id: int, db: Session = Depends(get_db)):
+    inv = db.query(Inventory).filter(Inventory.id == inventory_id).first()
+    if not inv:
+        raise HTTPException(404, "库存记录不存在")
+    return inv
+
+
+@router.put("/{inventory_id}", response_model=InventoryResponse)
+def update_inventory(inventory_id: int, data: InventoryUpdate, db: Session = Depends(get_db)):
+    inv = db.query(Inventory).filter(Inventory.id == inventory_id).first()
+    if not inv:
+        raise HTTPException(404, "库存记录不存在")
+
+    update_data = data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(inv, key, value)
+
+    db.commit()
+    db.refresh(inv)
+    return inv
+
+
+@router.post("/ensure-all", response_model=MessageResponse)
+def ensure_all_inventories(db: Session = Depends(get_db)):
+    """Ensure every active product has an inventory record."""
+    products = db.query(Product).filter(Product.status == "active", Product.category != "bundle").all()
+    created = 0
+    for p in products:
+        inv = db.query(Inventory).filter(Inventory.product_id == p.id).first()
+        if not inv:
+            db.add(Inventory(product_id=p.id, quantity=0, warning_threshold=5))
+            created += 1
+    db.commit()
+    return MessageResponse(message=f"已为 {created} 个商品创建库存记录")

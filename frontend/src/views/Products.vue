@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { Plus, X } from '@lucide/vue'
+import { Plus, X, Package, Star } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
 import DataTable from '../components/DataTable.vue'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -70,6 +70,7 @@ const productForm = ref({
   image: '',
   bundle_items: [],
   contents: [],
+  charity_rate: '',
 })
 
 // color selector state
@@ -90,6 +91,7 @@ function resetProductForm() {
     image: '',
     bundle_items: [],
     contents: [],
+    charity_rate: '',
   }
   colorMode.value = 'fixed'
   selectedFixedColorId.value = null
@@ -173,6 +175,7 @@ function editProduct(row) {
     image: row.image || '',
     bundle_items: row.bundle_items ? [...row.bundle_items] : [],
     contents: row.contents ? [...row.contents] : [],
+    charity_rate: row.charity_rate != null ? String(row.charity_rate) : '',
   }
   const c = row.colors
   if (c && c.type === '固定') {
@@ -202,6 +205,7 @@ async function handleProductSubmit() {
   try {
     const payload = {
       ...productForm.value,
+      charity_rate: productForm.value.charity_rate ? Number(productForm.value.charity_rate) : null,
       bundle_items: productForm.value.category === 'bundle' ? productForm.value.bundle_items : [],
       colors: buildColorsPayload(),
     }
@@ -214,6 +218,8 @@ async function handleProductSubmit() {
       products.value.push(created)
     }
     productModalVisible.value = false
+  } catch (e) {
+    alert('保存失败: ' + (e.message || e))
   } finally {
     productSaving.value = false
   }
@@ -368,13 +374,25 @@ onMounted(fetchAll)
     >
       <template #cell-name="{ row }">
         <div class="flex items-center gap-3">
-          <div
-            v-if="row.image"
-            class="w-8 h-8 rounded bg-dark-input border border-border-inner flex-shrink-0 bg-cover bg-center"
-            :style="{ backgroundImage: `url(${row.image})` }"
-          ></div>
+          <div class="w-8 h-8 rounded bg-dark-input border border-border-inner flex-shrink-0 flex items-center justify-center overflow-hidden">
+            <img
+              v-if="row.image"
+              :src="`/images/${row.image}`"
+              class="w-full h-full object-cover"
+              @error="$event.target.style.display='none'"
+            />
+            <Package v-if="!row.image" class="w-4 h-4 text-gray-500" />
+          </div>
           <div>
-            <div class="text-sm text-gray-200">{{ row.name }}</div>
+            <div class="flex items-center gap-2">
+              <div class="text-sm text-gray-200">{{ row.name }}</div>
+              <span
+                v-if="row.charity_rate != null"
+                class="text-xs px-1.5 py-0.5 rounded bg-pink-500/15 text-pink-400 border border-pink-500/30 font-medium"
+              >
+                &#10084; 公益 {{ Number(row.charity_rate) * 100 }}%
+              </span>
+            </div>
             <div v-if="row.category === 'bundle' && row.bundle_items" class="text-xs text-gold-muted mt-0.5">
               子商品: {{ row.bundle_items.join(', ') }}
             </div>
@@ -435,6 +453,16 @@ onMounted(fetchAll)
                 <label class="block text-sm text-gray-400 mb-1">合集优惠价</label>
                 <input v-model.number="productForm.price_bundle" type="number" step="0.01" min="0" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" />
               </div>
+            </div>
+
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">公益宝贝费率</label>
+              <select v-model="productForm.charity_rate" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50">
+                <option value="">非公益宝贝</option>
+                <option value="0.01">1%</option>
+                <option value="0.50">50%</option>
+                <option value="1.00">100%</option>
+              </select>
             </div>
 
             <div>
@@ -571,12 +599,19 @@ onMounted(fetchAll)
             <div
               v-for="r in recipes"
               :key="r.id"
-              class="flex items-center justify-between p-4 bg-dark-input rounded-lg border border-border-inner"
+              class="flex items-center justify-between p-4 bg-dark-input rounded-lg border transition-colors"
+              :class="r.is_default ? 'border-gold/40 shadow-[inset_0_0_0_1px_rgba(212,175,55,0.15)]' : 'border-border-inner'"
             >
               <div class="flex-1">
                 <div class="flex items-center gap-2">
-                  <span class="text-sm font-medium text-gray-200">{{ r.name }}</span>
-                  <span v-if="r.is_default" class="text-xs px-1.5 py-0.5 rounded bg-gold/20 text-gold">默认</span>
+                  <span class="text-sm font-medium" :class="r.is_default ? 'text-gold' : 'text-gray-200'">{{ r.name }}</span>
+                  <span
+                    v-if="r.is_default"
+                    class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-gold/15 text-gold border border-gold/30"
+                  >
+                    <Star class="w-3 h-3 fill-gold" />
+                    默认配方
+                  </span>
                 </div>
                 <div class="text-xs text-gray-500 mt-1 space-x-3">
                   <span>产出: {{ r.output_qty }}件</span>

@@ -118,12 +118,28 @@ def fix_order_statuses(db):
         print(f"Fixed {updated} order status(es)")
 
 
+def seed_settings(db):
+    from backend.models import Setting
+
+    defaults = [
+        ("shipping_fee", "0", "decimal", "默认运费（包邮为0）"),
+        ("service_fee_rate", "0.016", "decimal", "闲鱼服务费费率"),
+        ("packaging_fee", "1.5", "decimal", "单品包装费"),
+        ("packaging_fee_bundle", "2.0", "decimal", "合集包装费"),
+    ]
+    for key, value, value_type, desc in defaults:
+        if not db.query(Setting).filter(Setting.key == key).first():
+            db.add(Setting(key=key, value=value, value_type=value_type, description=desc))
+    db.commit()
+
+
 def init_db():
     from backend import models  # noqa: ensure all models loaded
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         seed_colors(db)
+        seed_settings(db)
         fix_color_ids(db)
         fix_order_statuses(db)
     finally:

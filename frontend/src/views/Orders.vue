@@ -8,11 +8,13 @@ import StatusBadge from '../components/StatusBadge.vue'
 const { loading, get, post, put, del } = useApi()
 
 const orders = ref([])
+const totalOrders = ref(0)
+const currentPage = ref(1)
+const pageSize = ref(30)
 const products = ref([])
-const statusFilter = ref('')
 
 const statuses = [
-  { value: '', label: '全部' },
+  { value: '', label: '全部状态' },
   { value: '待发货', label: '待发货' },
   { value: '已发货', label: '已发货' },
   { value: '交易成功', label: '交易成功' },
@@ -20,10 +22,15 @@ const statuses = [
   { value: '退货', label: '退货' },
 ]
 
-const filteredOrders = computed(() => {
-  if (!statusFilter.value) return orders.value
-  return orders.value.filter(o => o.status === statusFilter.value)
+const filters = ref({
+  status: '',
+  xianyu_order_id: '',
+  product_id: '',
+  date_from: '',
+  date_to: '',
 })
+
+const totalPages = computed(() => Math.max(1, Math.ceil(totalOrders.value / pageSize.value)))
 
 const columns = [
   { key: 'order_no', label: '订单编号', sortable: true },
@@ -34,13 +41,15 @@ const columns = [
   { key: 'actual_amount', label: '实付' },
   { key: 'source', label: '来源' },
   { key: 'order_time', label: '下单时间', sortable: true },
+  { key: 'completed_time', label: '完成时间' },
 ]
 
 const orderActions = [
   { label: '查看/编辑', handler: editOrder, class: 'btn-outline' },
   { label: '发货', handler: shipOrder, condition: (r) => r.status === '待发货', class: 'btn-soft' },
   { label: '完成', handler: completeOrder, condition: (r) => r.status === '已发货', class: 'btn-filled' },
-  { label: '取消', handler: cancelOrder, condition: (r) => r.status !== '已取消' && r.status !== '交易成功' && r.status !== '退货', class: 'btn-danger-outline' },
+  { label: '取消', handler: cancelOrder, condition: (r) => r.status !== '已取消' && r.status !== '交易成功' && r.status !== '退货' && r.status !== '已归档', class: 'btn-danger-outline' },
+  { label: '归档', handler: archiveOrder, condition: (r) => r.status === '交易成功' || r.status === '已取消' || r.status === '退货', class: 'btn-danger-outline' },
 ]
 
 const modalVisible = ref(false)
@@ -54,18 +63,46 @@ const orderForm = ref({
   packaging_fee: null,
   service_fee: null,
   service_fee_rate: null,
+  charity_fee: null,
+  charity_fee_rate: null,
   notes: '',
   buyer_nickname: '',
   items: [],
 })
 
 async function fetchAll() {
-  const [ord, prod] = await Promise.all([
-    get('/api/orders'),
+  const offset = (currentPage.value - 1) * pageSize.value
+  let params = `?limit=${pageSize.value}&offset=${offset}`
+  const f = filters.value
+  if (f.status) params += `&status=${encodeURIComponent(f.status)}`
+  if (f.xianyu_order_id) params += `&xianyu_order_id=${encodeURIComponent(f.xianyu_order_id)}`
+  if (f.product_id) params += `&product_id=${f.product_id}`
+  if (f.date_from) params += `&date_from=${f.date_from}`
+  if (f.date_to) params += `&date_to=${f.date_to}`
+  const [ordData, prod] = await Promise.all([
+    get(`/api/orders${params}`),
     get('/api/products'),
   ])
-  orders.value = ord
+  orders.value = ordData.items
+  totalOrders.value = ordData.total
   products.value = prod.filter(p => p.status === 'active')
+}
+
+function applyFilters() {
+  currentPage.value = 1
+  fetchAll()
+}
+
+function clearFilters() {
+  filters.value = { status: '', xianyu_order_id: '', product_id: '', date_from: '', date_to: '' }
+  currentPage.value = 1
+  fetchAll()
+}
+
+function goPage(page) {
+  if (page < 1 || page > totalPages.value) return
+  currentPage.value = page
+  fetchAll()
 }
 
 function resetForm() {
@@ -76,6 +113,8 @@ function resetForm() {
     packaging_fee: null,
     service_fee: null,
     service_fee_rate: null,
+    charity_fee: null,
+    charity_fee_rate: null,
     notes: '',
     buyer_nickname: '',
     items: [],
@@ -98,8 +137,10 @@ function editOrder(row) {
       packaging_fee: full.packaging_fee,
       service_fee: full.service_fee,
       service_fee_rate: full.service_fee_rate ? Number(full.service_fee_rate) * 100 : null,
+      charity_fee: full.charity_fee != null ? Number(full.charity_fee) : null,
+      charity_fee_rate: full.charity_fee_rate != null ? Number(full.charity_fee_rate) * 100 : null,
       notes: full.notes || '',
-      buyer_nickname: '',
+      buyer_nickname: full.buyer_nickname || '',
       items: (full.items || []).map(item => ({
         product_id: item.product_id,
         product_name: item.product_name || '',
@@ -130,6 +171,12 @@ async function cancelOrder(row) {
   row.status = '已取消'
 }
 
+async function archiveOrder(row) {
+  if (!confirm(`确定归档 ${row.order_no}？归档后将从活跃列表隐藏。`)) return
+  await put(`/api/orders/${row.id}`, { status: '已归档' })
+  row.status = '已归档'
+}
+
 function addOrderItem() {
   orderForm.value.items.push({
     product_id: null,
@@ -152,6 +199,9 @@ function onItemProductChange(idx) {
     item.product_name = prod.name
     item.unit_price = Number(prod.price_single)
     item.material_cost = Number(prod.material_cost)
+    if (prod.charity_rate != null && orderForm.value.charity_fee_rate == null) {
+      orderForm.value.charity_fee_rate = Number(prod.charity_rate) * 100
+    }
     recalcTotal()
   }
 }
@@ -190,6 +240,8 @@ async function handleSubmit() {
       packaging_fee: orderForm.value.packaging_fee != null ? Number(orderForm.value.packaging_fee) : null,
       service_fee: orderForm.value.service_fee != null ? Number(orderForm.value.service_fee) : null,
       service_fee_rate: orderForm.value.service_fee_rate != null ? Number(orderForm.value.service_fee_rate) / 100 : null,
+      charity_fee: orderForm.value.charity_fee != null ? Number(orderForm.value.charity_fee) : null,
+      charity_fee_rate: orderForm.value.charity_fee_rate != null ? Number(orderForm.value.charity_fee_rate) / 100 : null,
       notes: orderForm.value.notes || null,
       items: orderForm.value.items.map(item => ({
         product_id: Number(item.product_id),
@@ -243,27 +295,61 @@ onMounted(fetchAll)
       </div>
     </div>
 
-    <!-- Status Filters -->
-    <div class="flex gap-2 mb-4">
-      <button
-        v-for="s in statuses"
-        :key="s.value"
-        class="px-3 py-1.5 rounded-md text-sm transition-colors font-medium"
-        :class="
-          statusFilter === s.value
-            ? 'bg-gold/20 text-gold border border-gold/30'
-            : 'text-gray-400 hover:text-accent border border-transparent hover:bg-dark-card'
-        "
-        @click="statusFilter = s.value"
+    <!-- Filter Bar -->
+    <div class="flex flex-wrap items-center gap-2 mb-4">
+      <select
+        v-model="filters.status"
+        class="px-3 py-1.5 bg-dark-card border border-border-inner rounded-md text-sm text-gray-200
+               focus:outline-none focus:border-gold/50"
+        @change="applyFilters"
       >
-        {{ s.label }}
+        <option v-for="s in statuses" :key="s.value" :value="s.value">{{ s.label }}</option>
+      </select>
+      <input
+        v-model="filters.xianyu_order_id"
+        type="text"
+        placeholder="闲鱼订单号"
+        class="w-40 px-3 py-1.5 bg-dark-card border border-border-inner rounded-md text-sm text-gray-200
+               focus:outline-none focus:border-gold/50 placeholder-gray-600"
+        @keyup.enter="applyFilters"
+      />
+      <select
+        v-model="filters.product_id"
+        class="px-3 py-1.5 bg-dark-card border border-border-inner rounded-md text-sm text-gray-200
+               focus:outline-none focus:border-gold/50"
+        @change="applyFilters"
+      >
+        <option value="">全部商品</option>
+        <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }}</option>
+      </select>
+      <input
+        v-model="filters.date_from"
+        type="date"
+        class="w-36 px-3 py-1.5 bg-dark-card border border-border-inner rounded-md text-sm text-gray-200
+               focus:outline-none focus:border-gold/50"
+        @change="applyFilters"
+      />
+      <span class="text-gray-500 text-xs">至</span>
+      <input
+        v-model="filters.date_to"
+        type="date"
+        class="w-36 px-3 py-1.5 bg-dark-card border border-border-inner rounded-md text-sm text-gray-200
+               focus:outline-none focus:border-gold/50"
+        @change="applyFilters"
+      />
+      <button
+        class="px-3 py-1.5 text-sm text-gray-400 hover:text-gray-200 border border-border-inner rounded-md
+               hover:bg-dark-card transition-colors"
+        @click="clearFilters"
+      >
+        清除
       </button>
     </div>
 
     <!-- Order Table -->
     <DataTable
       :columns="columns"
-      :data="filteredOrders"
+      :data="orders"
       :loading="loading"
       :actions="orderActions"
       empty-text="暂无订单"
@@ -294,7 +380,32 @@ onMounted(fetchAll)
       <template #cell-order_time="{ value }">
         <span class="text-sm text-gray-400">{{ value ? value.slice(0, 10) : '-' }}</span>
       </template>
+      <template #cell-completed_time="{ value }">
+        <span class="text-sm text-gray-400">{{ value ? value.slice(0, 10) : '-' }}</span>
+      </template>
     </DataTable>
+
+    <!-- Pagination -->
+    <div v-if="totalOrders > 0" class="flex items-center justify-between mt-4 text-sm text-gray-400">
+      <div>共 {{ totalOrders }} 条订单</div>
+      <div class="flex items-center gap-3">
+        <button
+          class="px-3 py-1.5 rounded border border-border-inner hover:bg-dark-card hover:text-gray-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          :disabled="currentPage <= 1"
+          @click="goPage(currentPage - 1)"
+        >
+          上一页
+        </button>
+        <span class="text-gray-200">{{ currentPage }} / {{ totalPages }}</span>
+        <button
+          class="px-3 py-1.5 rounded border border-border-inner hover:bg-dark-card hover:text-gray-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          :disabled="currentPage >= totalPages"
+          @click="goPage(currentPage + 1)"
+        >
+          下一页
+        </button>
+      </div>
+    </div>
 
     <!-- Order Form Modal -->
     <Teleport to="body">
@@ -400,6 +511,14 @@ onMounted(fetchAll)
               <div>
                 <label class="block text-sm text-gray-400 mb-1">费率 %</label>
                 <input v-model.number="orderForm.service_fee_rate" type="number" step="0.01" min="0" placeholder="1.6" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50 placeholder-gray-600" />
+              </div>
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">公益支出</label>
+                <input v-model.number="orderForm.charity_fee" type="number" step="0.01" min="0" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" />
+              </div>
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">公益费率 %</label>
+                <input v-model.number="orderForm.charity_fee_rate" type="number" step="0.01" min="0" placeholder="1" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50 placeholder-gray-600" />
               </div>
             </div>
 
