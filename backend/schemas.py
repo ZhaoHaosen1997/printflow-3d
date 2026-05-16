@@ -14,8 +14,11 @@ class ColorBase(BaseModel):
     combo_of: Optional[List[str]] = None
 
 
-class ColorCreate(ColorBase):
-    pass
+class ColorCreate(BaseModel):
+    name: str
+    type: str  # standard / combo
+    swatches: List[str]
+    combo_of: Optional[List[str]] = None
 
 
 class ColorUpdate(BaseModel):
@@ -205,11 +208,135 @@ class OrderItemBase(BaseModel):
     material_cost: Decimal = Decimal("0")
 
 
+class OrderItemCreate(OrderItemBase):
+    pass
+
+
 class OrderItemResponse(OrderItemBase):
     id: int
     order_id: int
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class OrderCreate(BaseModel):
+    xianyu_order_id: Optional[str] = None
+    buyer_nickname: Optional[str] = None
+    buyer_province: Optional[str] = None
+    status: str = "待发货"
+    order_time: Optional[datetime] = None
+    total_amount: Decimal = Decimal("0")
+    discount: Decimal = Decimal("0")
+    actual_amount: Decimal = Decimal("0")
+    shipping_fee: Optional[Decimal] = None
+    packaging_fee: Optional[Decimal] = None
+    service_fee: Optional[Decimal] = None
+    service_fee_rate: Optional[Decimal] = None
+    province: Optional[str] = None
+    notes: Optional[str] = None
+    source: str = "manual"
+    items: List[OrderItemCreate] = []
+
+
+class OrderUpdate(BaseModel):
+    buyer_id: Optional[int] = None
+    status: Optional[str] = None
+    total_amount: Optional[Decimal] = None
+    discount: Optional[Decimal] = None
+    actual_amount: Optional[Decimal] = None
+    shipping_fee: Optional[Decimal] = None
+    packaging_fee: Optional[Decimal] = None
+    service_fee: Optional[Decimal] = None
+    service_fee_rate: Optional[Decimal] = None
+    province: Optional[str] = None
+    notes: Optional[str] = None
+    items: Optional[List[OrderItemCreate]] = None
+
+
+class OrderResponse(BaseModel):
+    id: int
+    order_no: str
+    xianyu_order_id: Optional[str] = None
+    buyer_id: Optional[int] = None
+    status: str
+    order_time: Optional[datetime] = None
+    ship_time: Optional[datetime] = None
+    completed_time: Optional[datetime] = None
+    total_amount: Decimal
+    discount: Decimal
+    actual_amount: Decimal
+    shipping_fee: Decimal
+    packaging_fee: Decimal
+    service_fee: Decimal
+    service_fee_rate: Decimal
+    province: Optional[str] = None
+    notes: Optional[str] = None
+    source: str
+    items: List[OrderItemResponse] = []
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrderListResponse(BaseModel):
+    id: int
+    order_no: str
+    xianyu_order_id: Optional[str] = None
+    buyer_id: Optional[int] = None
+    buyer_nickname: Optional[str] = None
+    status: str
+    order_time: Optional[datetime] = None
+    total_amount: Decimal
+    discount: Decimal
+    actual_amount: Decimal
+    source: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ============ Parser ============
+
+class ParsedOrderItem(BaseModel):
+    product_id: Optional[int] = None
+    product_name: str
+    quantity: int = 1
+    unit_price: Decimal = Decimal("0")
+    material_cost: Decimal = Decimal("0")
+    matched: bool = False
+    is_bundle: bool = False
+    bundle_children: Optional[List[dict]] = None
+
+
+class ParsedOrder(BaseModel):
+    xianyu_order_id: Optional[str] = None
+    status: str = "待发货"
+    order_time: Optional[datetime] = None
+    product_name: Optional[str] = None
+    total_amount: Decimal = Decimal("0")
+    actual_amount: Decimal = Decimal("0")
+    quantity: int = 1
+    buyer_nickname: Optional[str] = None
+    buyer_name: Optional[str] = None
+    buyer_phone: Optional[str] = None
+    buyer_address: Optional[str] = None
+    buyer_province: Optional[str] = None
+    matched_product_id: Optional[int] = None
+    matched: bool = False
+    is_bundle: bool = False
+    bundle_items: Optional[List[ParsedOrderItem]] = None
+    discount: Decimal = Decimal("0")
+    shipping_free: bool = True
+
+
+class ParseRequest(BaseModel):
+    text: str
+
+
+class ParseResponse(BaseModel):
+    orders: List[ParsedOrder] = []
+    errors: List[str] = []
 
 
 # ============ Inventories ============

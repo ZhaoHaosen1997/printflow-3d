@@ -13,7 +13,6 @@ const editingColor = ref(null)
 const saving = ref(false)
 
 const form = ref({
-  color_id: '',
   name: '',
   type: 'standard',
   swatches: ['#000000'],
@@ -23,7 +22,6 @@ const comboPickerOpen = ref(false)
 
 function initForm() {
   form.value = {
-    color_id: '',
     name: '',
     type: 'standard',
     swatches: ['#000000'],
@@ -47,7 +45,6 @@ function openCreate() {
 function editColor(color) {
   editingColor.value = color
   form.value = {
-    color_id: color.color_id,
     name: color.name,
     type: color.type,
     swatches: [...color.swatches],
@@ -67,6 +64,7 @@ async function confirmDelete(color) {
 }
 
 function addSwatch() {
+  if (form.value.type === 'standard' && form.value.swatches.length >= 3) return
   form.value.swatches.push('#000000')
 }
 
@@ -102,7 +100,6 @@ async function handleSubmit() {
   saving.value = true
   try {
     const payload = {
-      color_id: form.value.color_id,
       name: form.value.name,
       type: form.value.type,
       swatches: form.value.swatches,
@@ -155,14 +152,17 @@ onMounted(fetchColors)
           class="color-card group"
           @click="editColor(c)"
         >
-          <div class="flex gap-1 mb-2">
+          <div v-if="c.swatches && c.swatches.length === 1" class="flex gap-1 mb-2">
             <span
-              v-for="(sw, i) in c.swatches"
-              :key="i"
               class="w-7 h-7 rounded ring-1 ring-border-inner/40"
-              :style="{ backgroundColor: sw }"
+              :style="{ backgroundColor: c.swatches[0] }"
             ></span>
           </div>
+          <div
+            v-else-if="c.swatches && c.swatches.length >= 2"
+            class="w-7 h-7 rounded mb-2 ring-1 ring-border-inner/40"
+            :style="{ background: `linear-gradient(to bottom right, ${c.swatches.join(', ')})` }"
+          ></div>
           <div class="text-sm font-medium text-gray-200">{{ c.name }}</div>
           <div class="text-xs text-gray-500 font-mono mt-0.5">{{ c.color_id }}</div>
           <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
@@ -239,20 +239,6 @@ onMounted(fetchColors)
           </div>
 
           <form @submit.prevent="handleSubmit" class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            <!-- color_id -->
-            <div>
-              <label class="block text-sm text-gray-400 mb-1">
-                标识符 <span class="text-red-400">*</span>
-              </label>
-              <input
-                v-model="form.color_id"
-                type="text" required placeholder="如 black, blackgold"
-                :disabled="!!editingColor"
-                class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm
-                       focus:outline-none focus:border-gold/50 placeholder-gray-600 disabled:opacity-50"
-              />
-            </div>
-
             <!-- name -->
             <div>
               <label class="block text-sm text-gray-400 mb-1">
@@ -312,9 +298,10 @@ onMounted(fetchColors)
               <button
                 type="button"
                 class="mt-2 px-3 py-1 text-xs text-gold-muted hover:text-gold border border-border-inner rounded-md"
+                :class="{ 'opacity-40 pointer-events-none': form.swatches.length >= 3 }"
                 @click="addSwatch"
               >
-                + 添加色值
+                + 添加色值 {{ form.swatches.length >= 3 ? '(最多3个)' : '' }}
               </button>
             </div>
 

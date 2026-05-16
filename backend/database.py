@@ -57,7 +57,7 @@ def seed_colors(db):
         ("亮gold-gold-silver", "亮金-金-银", ["#FFDE66", "#d4af37", "#c0c0c0"], ["亮gold", "gold", "silver"]),
         ("purplewhite", "紫白", ["#B25FEC", "#ffffff"], ["purple", "white"]),
         ("whitered", "白红", ["#ffffff", "#ff0000"], ["white", "red"]),
-        ("gold-silver-cyancopper", "金-银-青铜", ["#d4af37", "#c0c0c0", "#74632e"], ["gold", "silver", "bronze"]),
+        ("gold-silver-bronze", "金-银-青铜", ["#d4af37", "#c0c0c0", "#74632e"], ["gold", "silver", "bronze"]),
     ]
 
     for color_id, name, swatches in standard_colors:
@@ -69,11 +69,62 @@ def seed_colors(db):
     db.commit()
 
 
+def fix_color_ids(db):
+    """Migrate Chinese or malformed color_ids to clean English slugs."""
+    from backend.models import Color
+    from backend.routers.colors import _translate_name
+
+    colors = db.query(Color).all()
+    updated = 0
+    for c in colors:
+        expected = _translate_name(c.name)
+        if c.color_id != expected:
+            # Check if expected id already taken by another record
+            existing = db.query(Color).filter(
+                Color.color_id == expected,
+                Color.id != c.id,
+            ).first()
+            if existing:
+                n = 2
+                while db.query(Color).filter(Color.color_id == f"{expected}{n}").first():
+                    n += 1
+                expected = f"{expected}{n}"
+            c.color_id = expected
+            updated += 1
+    if updated:
+        db.commit()
+        print(f"Fixed {updated} color_id(s)")
+
+
+STATUS_MIGRATION = {
+    "pending": "待发货",
+    "shipped": "已发货",
+    "completed": "交易成功",
+    "cancelled": "已取消",
+}
+
+
+def fix_order_statuses(db):
+    """Migrate English order status values to Chinese."""
+    from backend.models import Order
+    updated = 0
+    for eng, chn in STATUS_MIGRATION.items():
+        rows = db.query(Order).filter(Order.status == eng).update(
+            {Order.status: chn}, synchronize_session=False
+        )
+        updated += rows
+    if updated:
+        db.commit()
+        print(f"Fixed {updated} order status(es)")
+
+
 def init_db():
     from backend import models  # noqa: ensure all models loaded
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         seed_colors(db)
+        fix_color_ids(db)
+        fix_order_statuses(db)
     finally:
         db.close()

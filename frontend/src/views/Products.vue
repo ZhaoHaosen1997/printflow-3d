@@ -36,9 +36,9 @@ const columns = [
 ]
 
 const productActions = [
-  { label: '编辑', handler: editProduct },
-  { label: '配方', handler: openRecipes, class: 'text-gold-muted hover:text-gold hover:bg-gold/10' },
-  { label: '归档', handler: archiveProduct, condition: (r) => r.status === 'active' },
+  { label: '编辑', handler: editProduct, class: 'btn-outline' },
+  { label: '配方', handler: openRecipes, class: 'btn-soft' },
+  { label: '归档', handler: archiveProduct, condition: (r) => r.status === 'active', class: 'btn-danger-outline' },
 ]
 
 const productModalVisible = ref(false)
@@ -73,9 +73,12 @@ const productForm = ref({
 })
 
 // color selector state
-const colorMode = ref('none') // 'none' | 'fixed' | 'optional'
+const colorMode = ref('fixed') // 'fixed' | 'optional'
 const selectedFixedColorId = ref(null)
 const selectedOptionalColorIds = ref([])
+
+// all active products for bundle_items selector
+const allActive = computed(() => products.value.filter(p => p.status === 'active' && p.category !== 'bundle'))
 
 function resetProductForm() {
   productForm.value = {
@@ -88,7 +91,7 @@ function resetProductForm() {
     bundle_items: [],
     contents: [],
   }
-  colorMode.value = 'none'
+  colorMode.value = 'fixed'
   selectedFixedColorId.value = null
   selectedOptionalColorIds.value = []
 }
@@ -111,7 +114,6 @@ function optionalColorSelected(colorId) {
 }
 
 function buildColorsPayload() {
-  if (colorMode.value === 'none') return null
   if (colorMode.value === 'fixed' && selectedFixedColorId.value) {
     const cs = allColors.value.find(c => c.color_id === selectedFixedColorId.value)
     return {
@@ -126,11 +128,14 @@ function buildColorsPayload() {
       const cs = allColors.value.find(c => c.color_id === id)
       return cs ? cs.swatches : []
     })
+    const defaultId = selectedOptionalColorIds.value[0]
+    const defaultCs = allColors.value.find(c => c.color_id === defaultId)
     return {
       type: '可选',
       optionalColorSetIds: [...selectedOptionalColorIds.value],
+      defaultColorSetId: defaultId,
       swatches,
-      label: '可选配色',
+      label: `可选配色（默认${defaultCs ? defaultCs.name : defaultId}）`,
     }
   }
   return null
@@ -179,7 +184,7 @@ function editProduct(row) {
     selectedFixedColorId.value = null
     selectedOptionalColorIds.value = c.optionalColorSetIds ? [...c.optionalColorSetIds] : []
   } else {
-    colorMode.value = 'none'
+    colorMode.value = 'fixed'
     selectedFixedColorId.value = null
     selectedOptionalColorIds.value = []
   }
@@ -197,10 +202,8 @@ async function handleProductSubmit() {
   try {
     const payload = {
       ...productForm.value,
+      bundle_items: productForm.value.category === 'bundle' ? productForm.value.bundle_items : [],
       colors: buildColorsPayload(),
-    }
-    if (payload.bundle_items && typeof payload.bundle_items === 'string') {
-      payload.bundle_items = payload.bundle_items.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n))
     }
     if (editingProduct.value) {
       const updated = await put(`/api/products/${editingProduct.value.id}`, payload)
@@ -446,14 +449,17 @@ onMounted(fetchAll)
 
             <!-- Bundle items (only for bundle) -->
             <div v-if="productForm.category === 'bundle'">
-              <label class="block text-sm text-gray-400 mb-2">子商品ID列表</label>
+              <label class="block text-sm text-gray-400 mb-2">子商品列表</label>
               <div class="space-y-2">
-                <div v-for="(item, idx) in productForm.bundle_items" :key="idx" class="flex gap-2">
-                  <input v-model="productForm.bundle_items[idx]" type="text" class="flex-1 px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" />
+                <div v-for="(item, idx) in productForm.bundle_items" :key="idx" class="flex gap-2 items-center">
+                  <select v-model.number="productForm.bundle_items[idx]" class="flex-1 px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50">
+                    <option :value="null" disabled>选择子商品...</option>
+                    <option v-for="p in allActive" :key="p.id" :value="p.id">{{ p.name }}</option>
+                  </select>
                   <button type="button" class="shrink-0 px-2 py-2 text-xs btn-danger rounded" @click="productForm.bundle_items.splice(idx, 1)"><X class="w-4 h-4" /></button>
                 </div>
               </div>
-              <button type="button" class="mt-2 px-3 py-1 text-xs text-gold-muted hover:text-gold border border-border-inner rounded-md" @click="productForm.bundle_items.push('')">+ 添加子商品ID</button>
+              <button type="button" class="mt-2 px-3 py-1 text-xs text-gold-muted hover:text-gold border border-border-inner rounded-md" @click="productForm.bundle_items.push(null)">+ 添加子商品</button>
             </div>
 
             <!-- Contents -->
@@ -474,7 +480,7 @@ onMounted(fetchAll)
 
               <!-- Mode toggle -->
               <div class="flex gap-3 mb-3">
-                <label v-for="m in [{v:'none',l:'无配色'},{v:'fixed',l:'固定配色'},{v:'optional',l:'可选配色'}]" :key="m.v"
+                <label v-for="m in [{v:'fixed',l:'固定配色'},{v:'optional',l:'可选配色'}]" :key="m.v"
                   class="flex items-center gap-1.5 text-sm cursor-pointer"
                   :class="colorMode === m.v ? 'text-gold' : 'text-gray-400 hover:text-gray-200'"
                 >
@@ -510,6 +516,7 @@ onMounted(fetchAll)
                 >
                   <span v-for="(sw, i) in c.swatches" :key="i" class="w-3.5 h-3.5 rounded-sm ring-1 ring-border-inner/30" :style="{ backgroundColor: sw }"></span>
                   {{ c.name }}
+                  <span v-if="optionalColorSelected(c.color_id) && selectedOptionalColorIds[0] === c.color_id" class="text-xs text-gold ml-0.5">默认</span>
                 </button>
               </div>
 

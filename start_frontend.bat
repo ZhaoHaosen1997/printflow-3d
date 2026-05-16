@@ -1,15 +1,14 @@
 @echo off
-chcp 65001 >nul
-title PrintFlow-3D 前端
+setlocal enabledelayedexpansion
+title PrintFlow-3D Frontend
 
 echo ============================================
-echo   PrintFlow-3D 前端服务
+echo   PrintFlow-3D Frontend
 echo   Vite ^| port 5173
 echo ============================================
 echo.
 
-cd /d "%~dp0\frontend"
-
-call npx vite --host
+cd /d "%~dp0frontend"
+npx vite --host
 
 pause

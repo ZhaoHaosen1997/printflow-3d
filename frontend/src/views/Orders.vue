@@ -1,0 +1,423 @@
+<script setup>
+import { ref, onMounted, computed } from 'vue'
+import { Plus, X, Search } from '@lucide/vue'
+import { useApi } from '../composables/useApi'
+import DataTable from '../components/DataTable.vue'
+import StatusBadge from '../components/StatusBadge.vue'
+
+const { loading, get, post, put, del } = useApi()
+
+const orders = ref([])
+const products = ref([])
+const statusFilter = ref('')
+
+const statuses = [
+  { value: '', label: '全部' },
+  { value: '待发货', label: '待发货' },
+  { value: '已发货', label: '已发货' },
+  { value: '交易成功', label: '交易成功' },
+  { value: '已取消', label: '已取消' },
+  { value: '退货', label: '退货' },
+]
+
+const filteredOrders = computed(() => {
+  if (!statusFilter.value) return orders.value
+  return orders.value.filter(o => o.status === statusFilter.value)
+})
+
+const columns = [
+  { key: 'order_no', label: '订单编号', sortable: true },
+  { key: 'xianyu_order_id', label: '闲鱼订单号' },
+  { key: 'status', label: '状态' },
+  { key: 'buyer_nickname', label: '买家' },
+  { key: 'total_amount', label: '原价' },
+  { key: 'actual_amount', label: '实付' },
+  { key: 'source', label: '来源' },
+  { key: 'order_time', label: '下单时间', sortable: true },
+]
+
+const orderActions = [
+  { label: '查看/编辑', handler: editOrder, class: 'btn-outline' },
+  { label: '发货', handler: shipOrder, condition: (r) => r.status === '待发货', class: 'btn-soft' },
+  { label: '完成', handler: completeOrder, condition: (r) => r.status === '已发货', class: 'btn-filled' },
+  { label: '取消', handler: cancelOrder, condition: (r) => r.status !== '已取消' && r.status !== '交易成功' && r.status !== '退货', class: 'btn-danger-outline' },
+]
+
+const modalVisible = ref(false)
+const editingOrder = ref(null)
+const orderSaving = ref(false)
+
+const orderForm = ref({
+  order_time: '',
+  actual_amount: 0,
+  shipping_fee: null,
+  packaging_fee: null,
+  service_fee: null,
+  service_fee_rate: null,
+  notes: '',
+  buyer_nickname: '',
+  items: [],
+})
+
+async function fetchAll() {
+  const [ord, prod] = await Promise.all([
+    get('/api/orders'),
+    get('/api/products'),
+  ])
+  orders.value = ord
+  products.value = prod.filter(p => p.status === 'active')
+}
+
+function resetForm() {
+  orderForm.value = {
+    order_time: new Date().toISOString().slice(0, 16),
+    actual_amount: 0,
+    shipping_fee: null,
+    packaging_fee: null,
+    service_fee: null,
+    service_fee_rate: null,
+    notes: '',
+    buyer_nickname: '',
+    items: [],
+  }
+}
+
+function openCreate() {
+  editingOrder.value = null
+  resetForm()
+  modalVisible.value = true
+}
+
+function editOrder(row) {
+  editingOrder.value = row
+  get(`/api/orders/${row.id}`).then(full => {
+    orderForm.value = {
+      order_time: full.order_time ? full.order_time.slice(0, 16) : '',
+      actual_amount: full.actual_amount,
+      shipping_fee: full.shipping_fee,
+      packaging_fee: full.packaging_fee,
+      service_fee: full.service_fee,
+      service_fee_rate: full.service_fee_rate ? Number(full.service_fee_rate) * 100 : null,
+      notes: full.notes || '',
+      buyer_nickname: '',
+      items: (full.items || []).map(item => ({
+        product_id: item.product_id,
+        product_name: item.product_name || '',
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        material_cost: item.material_cost,
+      })),
+    }
+    modalVisible.value = true
+  })
+}
+
+async function shipOrder(row) {
+  if (!confirm(`确认发货 ${row.order_no}？`)) return
+  await put(`/api/orders/${row.id}`, { status: '已发货' })
+  row.status = '已发货'
+}
+
+async function completeOrder(row) {
+  if (!confirm(`确认完成 ${row.order_no}？`)) return
+  await put(`/api/orders/${row.id}`, { status: '交易成功' })
+  row.status = '交易成功'
+}
+
+async function cancelOrder(row) {
+  if (!confirm(`确定取消 ${row.order_no}？`)) return
+  await del(`/api/orders/${row.id}`)
+  row.status = '已取消'
+}
+
+function addOrderItem() {
+  orderForm.value.items.push({
+    product_id: null,
+    product_name: '',
+    quantity: 1,
+    unit_price: 0,
+    material_cost: 0,
+  })
+}
+
+function removeOrderItem(idx) {
+  orderForm.value.items.splice(idx, 1)
+  recalcTotal()
+}
+
+function onItemProductChange(idx) {
+  const item = orderForm.value.items[idx]
+  const prod = products.value.find(p => p.id === Number(item.product_id))
+  if (prod) {
+    item.product_name = prod.name
+    item.unit_price = Number(prod.price_single)
+    item.material_cost = Number(prod.material_cost)
+    recalcTotal()
+  }
+}
+
+function recalcTotal() {
+  let total = 0
+  for (const item of orderForm.value.items) {
+    total += (Number(item.unit_price) || 0) * (Number(item.quantity) || 1)
+  }
+  // auto-calc actual = total if not set
+  if (!orderForm.value.actual_amount || orderForm.value.actual_amount === 0) {
+    orderForm.value.actual_amount = Math.round(total * 100) / 100
+  }
+}
+
+const computedTotal = computed(() => {
+  let t = 0
+  for (const item of orderForm.value.items) {
+    t += (Number(item.unit_price) || 0) * (Number(item.quantity) || 1)
+  }
+  return Math.round(t * 100) / 100
+})
+
+async function handleSubmit() {
+  orderSaving.value = true
+  try {
+    const payload = {
+      status: '待发货',
+      source: 'manual',
+      buyer_nickname: orderForm.value.buyer_nickname || null,
+      order_time: orderForm.value.order_time ? orderForm.value.order_time + ':00' : null,
+      total_amount: computedTotal.value,
+      discount: Math.max(0, computedTotal.value - (Number(orderForm.value.actual_amount) || 0)),
+      actual_amount: Number(orderForm.value.actual_amount) || 0,
+      shipping_fee: orderForm.value.shipping_fee != null ? Number(orderForm.value.shipping_fee) : null,
+      packaging_fee: orderForm.value.packaging_fee != null ? Number(orderForm.value.packaging_fee) : null,
+      service_fee: orderForm.value.service_fee != null ? Number(orderForm.value.service_fee) : null,
+      service_fee_rate: orderForm.value.service_fee_rate != null ? Number(orderForm.value.service_fee_rate) / 100 : null,
+      notes: orderForm.value.notes || null,
+      items: orderForm.value.items.map(item => ({
+        product_id: Number(item.product_id),
+        product_name: item.product_name,
+        quantity: Number(item.quantity),
+        unit_price: Number(item.unit_price),
+        material_cost: Number(item.material_cost),
+      })),
+    }
+
+    if (editingOrder.value) {
+      await put(`/api/orders/${editingOrder.value.id}`, payload)
+    } else {
+      await post('/api/orders', payload)
+    }
+    modalVisible.value = false
+    await fetchAll()
+  } finally {
+    orderSaving.value = false
+  }
+}
+
+onMounted(fetchAll)
+</script>
+
+<template>
+  <div>
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="text-2xl font-serif text-gold-title">订单管理</h2>
+        <p class="text-sm text-gold-muted mt-1">管理订单、粘贴导入、跟踪发货状态</p>
+      </div>
+      <div class="flex gap-2">
+        <router-link
+          to="/paste-import"
+          class="flex items-center gap-2 px-4 py-2 bg-gold/20 text-gold border border-gold/30 rounded-lg
+                 hover:bg-gold/30 transition-colors text-sm"
+        >
+          <Search class="w-4 h-4" />
+          粘贴导入
+        </router-link>
+        <button
+          class="flex items-center gap-2 px-4 py-2 bg-gold/20 text-gold border border-gold/30 rounded-lg
+                 hover:bg-gold/30 transition-colors text-sm"
+          @click="openCreate"
+        >
+          <Plus class="w-4 h-4" />
+          新增订单
+        </button>
+      </div>
+    </div>
+
+    <!-- Status Filters -->
+    <div class="flex gap-2 mb-4">
+      <button
+        v-for="s in statuses"
+        :key="s.value"
+        class="px-3 py-1.5 rounded-md text-sm transition-colors font-medium"
+        :class="
+          statusFilter === s.value
+            ? 'bg-gold/20 text-gold border border-gold/30'
+            : 'text-gray-400 hover:text-accent border border-transparent hover:bg-dark-card'
+        "
+        @click="statusFilter = s.value"
+      >
+        {{ s.label }}
+      </button>
+    </div>
+
+    <!-- Order Table -->
+    <DataTable
+      :columns="columns"
+      :data="filteredOrders"
+      :loading="loading"
+      :actions="orderActions"
+      empty-text="暂无订单"
+    >
+      <template #cell-order_no="{ value }">
+        <span class="text-sm text-gold font-mono">{{ value }}</span>
+      </template>
+      <template #cell-xianyu_order_id="{ value }">
+        <span class="text-xs text-gray-400 font-mono">{{ value || '-' }}</span>
+      </template>
+      <template #cell-status="{ value }">
+        <StatusBadge :status="value" />
+      </template>
+      <template #cell-buyer_nickname="{ value }">
+        <span class="text-sm text-gray-200">{{ value || '-' }}</span>
+      </template>
+      <template #cell-total_amount="{ value }">
+        <span class="text-sm text-gray-500 line-through">¥{{ Number(value).toFixed(2) }}</span>
+      </template>
+      <template #cell-actual_amount="{ value }">
+        <span class="text-gold-price font-medium">¥{{ Number(value).toFixed(2) }}</span>
+      </template>
+      <template #cell-source="{ value }">
+        <span class="text-xs px-2 py-0.5 rounded bg-dark-input text-gray-400">
+          {{ { paste_import: '粘贴导入', manual: '手动', wechat: '微信' }[value] || value }}
+        </span>
+      </template>
+      <template #cell-order_time="{ value }">
+        <span class="text-sm text-gray-400">{{ value ? value.slice(0, 10) : '-' }}</span>
+      </template>
+    </DataTable>
+
+    <!-- Order Form Modal -->
+    <Teleport to="body">
+      <div
+        v-if="modalVisible"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+        @click.self="modalVisible = false"
+      >
+        <div class="bg-dark-card border border-border-main rounded-lg shadow-2xl w-full max-w-3xl mx-4 max-h-[90vh] flex flex-col">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-border-inner">
+            <h3 class="text-lg font-serif text-gold-title">
+              {{ editingOrder ? '编辑订单' : '新增订单' }}
+            </h3>
+            <button class="text-gray-500 hover:text-gray-300" @click="modalVisible = false">
+              <X class="w-5 h-5" />
+            </button>
+          </div>
+
+          <form @submit.prevent="handleSubmit" class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+            <!-- Row 1: Order Time + Buyer -->
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">下单时间</label>
+                <input v-model="orderForm.order_time" type="datetime-local" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" />
+              </div>
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">买家昵称</label>
+                <input v-model="orderForm.buyer_nickname" type="text" placeholder="可空" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50 placeholder-gray-600" />
+              </div>
+            </div>
+
+            <!-- Order Items -->
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="text-sm text-gray-400">订单明细</label>
+                <button type="button" class="text-xs text-gold-muted hover:text-gold px-2 py-1 border border-border-inner rounded" @click="addOrderItem">
+                  + 添加商品
+                </button>
+              </div>
+              <div v-if="orderForm.items.length === 0" class="text-xs text-gray-500 py-3 text-center border border-dashed border-border-inner rounded-md">
+                尚未添加商品
+              </div>
+              <div v-for="(item, idx) in orderForm.items" :key="idx" class="flex items-start gap-2 mb-2 p-3 bg-dark-input rounded-md border border-border-inner">
+                <div class="flex-1">
+                  <div class="grid grid-cols-5 gap-2">
+                    <div class="col-span-2">
+                      <label class="text-xs text-gray-500">商品</label>
+                      <select v-model.number="item.product_id" class="w-full px-2 py-1.5 bg-dark-card border border-border-inner rounded text-sm text-gray-200 focus:outline-none focus:border-gold/50" @change="onItemProductChange(idx)">
+                        <option :value="null" disabled>选择商品...</option>
+                        <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }}</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="text-xs text-gray-500">数量</label>
+                      <input v-model.number="item.quantity" type="number" min="1" class="w-full px-2 py-1.5 bg-dark-card border border-border-inner rounded text-sm text-gray-200 focus:outline-none focus:border-gold/50" @change="recalcTotal" />
+                    </div>
+                    <div>
+                      <label class="text-xs text-gray-500">单价</label>
+                      <div class="w-full px-2 py-1.5 bg-dark-card/50 border border-border-inner rounded text-sm text-gray-400">
+                        ¥{{ Number(item.unit_price).toFixed(2) }}
+                      </div>
+                    </div>
+                    <div>
+                      <label class="text-xs text-gray-500">材料成本</label>
+                      <div class="w-full px-2 py-1.5 bg-dark-card/50 border border-border-inner rounded text-sm text-gray-400">
+                        ¥{{ Number(item.material_cost).toFixed(2) }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <button type="button" class="shrink-0 mt-5 p-1 text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded" @click="removeOrderItem(idx)"><X class="w-4 h-4" /></button>
+              </div>
+            </div>
+
+            <!-- Amounts: read-only total + editable actual -->
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">原价总额（自动计算）</label>
+                <div class="w-full px-3 py-2 bg-dark-input/50 border border-border-inner rounded-md text-gray-400 text-sm">
+                  ¥{{ computedTotal.toFixed(2) }}
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">实付金额 <span class="text-red-400">*</span></label>
+                <input v-model.number="orderForm.actual_amount" type="number" step="0.01" min="0" required class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" />
+              </div>
+            </div>
+
+            <!-- Fees -->
+            <div class="grid grid-cols-4 gap-4">
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">运费</label>
+                <input v-model.number="orderForm.shipping_fee" type="number" step="0.01" min="0" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" />
+              </div>
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">包装费</label>
+                <input v-model.number="orderForm.packaging_fee" type="number" step="0.01" min="0" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" />
+              </div>
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">服务费</label>
+                <input v-model.number="orderForm.service_fee" type="number" step="0.01" min="0" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" />
+              </div>
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">费率 %</label>
+                <input v-model.number="orderForm.service_fee_rate" type="number" step="0.01" min="0" placeholder="1.6" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50 placeholder-gray-600" />
+              </div>
+            </div>
+
+            <!-- Notes -->
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">备注</label>
+              <textarea v-model="orderForm.notes" rows="2" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50 placeholder-gray-600" placeholder="可空"></textarea>
+            </div>
+          </form>
+
+          <div class="flex justify-end gap-3 px-6 py-4 border-t border-border-inner">
+            <button class="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 hover:bg-dark-input rounded-md transition-colors" @click="modalVisible = false">取消</button>
+            <button class="px-4 py-2 text-sm bg-gold/20 text-gold border border-gold/40 rounded-md hover:bg-gold/30 transition-colors disabled:opacity-50" :disabled="orderSaving" @click="handleSubmit">
+              {{ orderSaving ? '保存中...' : '保存' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+  </div>
+</template>

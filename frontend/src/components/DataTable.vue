@@ -61,7 +61,7 @@ function cellValue(row, col) {
               {{ sortDir === 'asc' ? '^' : 'v' }}
             </span>
           </th>
-          <th v-if="actions.length" class="px-4 py-3 text-right text-xs font-medium text-gold-muted uppercase tracking-wider w-24">
+          <th v-if="actions.length" class="px-4 py-3 text-right text-xs font-medium text-gold-muted uppercase tracking-wider">
             操作
           </th>
         </tr>
@@ -97,13 +97,13 @@ function cellValue(row, col) {
                 {{ cellValue(row, col) }}
               </slot>
             </td>
-            <td v-if="actions.length" class="px-4 py-3 text-right">
+            <td v-if="actions.length" class="px-4 py-3 text-right whitespace-nowrap">
               <button
                 v-for="action in actions"
                 :key="action.label"
                 v-show="!action.condition || action.condition(row)"
-                class="ml-1 px-2 py-1 text-xs rounded transition-colors"
-                :class="action.class || 'text-gold-muted hover:text-gold hover:bg-gold/10'"
+                class="ml-1 px-2.5 py-1 text-xs rounded-md transition-colors inline-block border"
+                :class="action.class || 'btn-outline'"
                 @click="action.handler(row)"
               >
                 {{ action.label }}
@@ -115,3 +115,67 @@ function cellValue(row, col) {
     </table>
   </div>
 </template>
+
+<style scoped>
+/* ---- Action Button Variants ---- */
+
+/* 1. Outlined — border only, transparent bg */
+.btn-outline {
+  color: var(--app-text-dim);
+  border-color: var(--app-border-light);
+  background: transparent;
+}
+.btn-outline:hover {
+  color: var(--app-accent);
+  border-color: var(--app-accent);
+  background: color-mix(in srgb, var(--app-accent) 8%, transparent);
+}
+
+/* 2. Ghost — no border, subtle bg on hover */
+.btn-ghost {
+  color: var(--app-text-dim);
+  border-color: transparent;
+  background: transparent;
+}
+.btn-ghost:hover {
+  color: var(--app-accent);
+  border-color: transparent;
+  background: color-mix(in srgb, var(--app-accent) 10%, transparent);
+}
+
+/* 3. Soft — light tinted bg with border */
+.btn-soft {
+  color: var(--app-accent);
+  border-color: color-mix(in srgb, var(--app-accent) 30%, transparent);
+  background: color-mix(in srgb, var(--app-accent) 10%, transparent);
+}
+.btn-soft:hover {
+  color: var(--app-accent);
+  border-color: var(--app-accent);
+  background: color-mix(in srgb, var(--app-accent) 20%, transparent);
+}
+
+/* 4. Filled — solid accent bg */
+.btn-filled {
+  color: #fff;
+  border-color: var(--app-accent);
+  background: var(--app-accent);
+}
+.btn-filled:hover {
+  color: #fff;
+  border-color: var(--app-accent-hover);
+  background: var(--app-accent-hover);
+}
+
+/* 5. Danger — red outline */
+.btn-danger-outline {
+  color: var(--badge-danger-text);
+  border-color: color-mix(in srgb, var(--badge-danger-text) 30%, transparent);
+  background: transparent;
+}
+.btn-danger-outline:hover {
+  color: #fff;
+  border-color: var(--badge-danger-text);
+  background: var(--badge-danger-text);
+}
+</style>
