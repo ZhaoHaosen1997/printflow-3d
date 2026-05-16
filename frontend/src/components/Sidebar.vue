@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { Palette, Layers, Package, Settings, ChevronDown, Paintbrush, ShoppingBag, Boxes, SlidersHorizontal, FileText, Printer, Users } from '@lucide/vue'
+import { Palette, Layers, Package, Settings, ChevronDown, Paintbrush, ShoppingBag, Boxes, SlidersHorizontal, FileText, Printer, Users, TrendingUp } from '@lucide/vue'
 import { useRoute } from 'vue-router'
 import { useTheme } from '../composables/useTheme'
 
@@ -8,6 +8,7 @@ const route = useRoute()
 const { themes, currentTheme, setTheme } = useTheme()
 
 const topItems = [
+  { to: '/sales', label: '销售统计', icon: TrendingUp },
   { to: '/products', label: '商品管理', icon: Package },
   { to: '/orders', label: '订单管理', icon: ShoppingBag },
   { to: '/print-tasks', label: '打印任务', icon: Printer },
@@ -43,7 +44,7 @@ function toggleSys() {
   <aside class="w-60 flex-shrink-0 bg-dark-card border-r border-border-inner flex flex-col">
     <div class="p-5 border-b border-border-inner">
       <h1 class="text-xl font-serif text-gold-title tracking-wide">PrintFlow 3D</h1>
-      <p class="text-xs text-gold-muted mt-1">v1.6.0</p>
+      <p class="text-xs text-gold-muted mt-1">v1.7.0</p>
     </div>
     <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
       <!-- Top-level items -->

@@ -524,6 +524,39 @@ class PaginatedBuyersResponse(BaseModel):
     total: int
 
 
+# ============ Sales ============
+
+class SalesOverviewResponse(BaseModel):
+    total_orders: int = 0
+    total_revenue: Decimal = Decimal("0")
+    total_profit: Decimal = Decimal("0")
+    total_material_cost: Decimal = Decimal("0")
+    total_shipping_fee: Decimal = Decimal("0")
+    total_packaging_fee: Decimal = Decimal("0")
+    total_service_fee: Decimal = Decimal("0")
+    total_charity_fee: Decimal = Decimal("0")
+    total_discount: Decimal = Decimal("0")
+    avg_order_value: Decimal = Decimal("0")
+    avg_profit_per_order: Decimal = Decimal("0")
+
+
+class MonthlySalesItem(BaseModel):
+    month: int
+    orders: int = 0
+    revenue: Decimal = Decimal("0")
+    profit: Decimal = Decimal("0")
+
+
+class ProductSalesItem(BaseModel):
+    product_id: int
+    product_name: str
+    category: str
+    quantity: int = 0
+    revenue: Decimal = Decimal("0")
+    material_cost: Decimal = Decimal("0")
+    profit: Decimal = Decimal("0")
+
+
 # ============ Common ============
 
 class MessageResponse(BaseModel):
