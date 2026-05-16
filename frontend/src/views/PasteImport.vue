@@ -54,14 +54,16 @@ async function saveOrder(index) {
   saving.value = true
   try {
     let items = []
-    if (po.bundle_items && po.bundle_items.length > 0) {
-      items = po.bundle_items.map(bi => ({
-        product_id: bi.product_id,
-        product_name: bi.product_name,
-        quantity: bi.quantity || 1,
-        unit_price: Number(bi.unit_price || 0),
-        material_cost: Number(bi.material_cost || 0),
-      }))
+    if (po.is_bundle && po.bundle_items && po.bundle_items.length > 0) {
+      // Fixed bundle (e.g., Token合集包): single item pointing to the bundle product
+      const materialCost = po.bundle_items.reduce((sum, bi) => sum + (Number(bi.material_cost) || 0), 0)
+      items = [{
+        product_id: po.matched_product_id,
+        product_name: po.product_name,
+        quantity: po.quantity || 1,
+        unit_price: Number(po.total_amount || 0),
+        material_cost: Math.round(materialCost * 100) / 100,
+      }]
     } else if (po.matched_product_id) {
       items = [{
         product_id: po.matched_product_id,

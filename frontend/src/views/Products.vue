@@ -71,6 +71,7 @@ const productForm = ref({
   bundle_items: [],
   contents: [],
   charity_rate: '',
+  search_keywords: '',
 })
 
 // color selector state
@@ -92,6 +93,7 @@ function resetProductForm() {
     bundle_items: [],
     contents: [],
     charity_rate: '',
+    search_keywords: '',
   }
   colorMode.value = 'fixed'
   selectedFixedColorId.value = null
@@ -176,6 +178,7 @@ function editProduct(row) {
     bundle_items: row.bundle_items ? [...row.bundle_items] : [],
     contents: row.contents ? [...row.contents] : [],
     charity_rate: row.charity_rate != null ? String(row.charity_rate) : '',
+    search_keywords: row.search_keywords ? row.search_keywords.join(', ') : '',
   }
   const c = row.colors
   if (c && c.type === '固定') {
@@ -208,6 +211,9 @@ async function handleProductSubmit() {
       charity_rate: productForm.value.charity_rate ? Number(productForm.value.charity_rate) : null,
       bundle_items: productForm.value.category === 'bundle' ? productForm.value.bundle_items : [],
       colors: buildColorsPayload(),
+      search_keywords: productForm.value.search_keywords
+        ? productForm.value.search_keywords.split(/[,，]/).map(s => s.trim()).filter(Boolean)
+        : null,
     }
     if (editingProduct.value) {
       const updated = await put(`/api/products/${editingProduct.value.id}`, payload)
@@ -473,6 +479,11 @@ onMounted(fetchAll)
             <div>
               <label class="block text-sm text-gray-400 mb-1">图片文件名</label>
               <input v-model="productForm.image" type="text" placeholder="如 product.jpg" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50 placeholder-gray-600" />
+            </div>
+
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">搜索关键词（逗号分隔，用于粘贴导入匹配）</label>
+              <input v-model="productForm.search_keywords" type="text" placeholder="如: 立牌计数器, 怪物底座, 磁吸" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50 placeholder-gray-600" />
             </div>
 
             <!-- Bundle items (only for bundle) -->

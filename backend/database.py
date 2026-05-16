@@ -133,9 +133,25 @@ def seed_settings(db):
     db.commit()
 
 
+def _add_column_safe(table: str, column: str, col_def: str):
+    """Add a column if it doesn't already exist (SQLite)."""
+    import sqlite3
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        cur = conn.execute(f"PRAGMA table_info({table})")
+        cols = {row[1] for row in cur.fetchall()}
+        if column not in cols:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}")
+            conn.commit()
+            print(f"Added column {table}.{column}")
+    finally:
+        conn.close()
+
+
 def init_db():
     from backend import models  # noqa: ensure all models loaded
     Base.metadata.create_all(bind=engine)
+    _add_column_safe("products", "search_keywords", "JSON")
     db = SessionLocal()
     try:
         seed_colors(db)

@@ -82,6 +82,25 @@ def _parse_single_block(text: str) -> dict | None:
     if m:
         product_name = m.group(1).strip()
 
+    # Fallback: product name without brackets (between 下单时间 and status/price)
+    if not product_name:
+        lines = clean.split("\n")
+        capture = False
+        for line in lines:
+            s = line.strip()
+            if not s:
+                continue
+            if "下单时间" in s:
+                capture = True
+                continue
+            if capture:
+                if re.match(r"^\d{15,20}$", s):
+                    continue
+                if s in ("待发货", "已发货", "交易成功") or s.startswith("¥") or s.startswith("×"):
+                    break
+                product_name = s
+                break
+
     # Prices: collapse whitespace for reliable matching
     flat = re.sub(r"\s+", " ", clean)
     total_amount = Decimal("0")
@@ -262,6 +281,22 @@ def _fuzzy_match(name: str, products: list[Product]) -> Product | None:
     if not name:
         return None
 
+    name_lower = name.lower()
+
+    # ---- Phase 1: keyword scoring ----
+    best_kw_product = None
+    best_kw_score = 0
+    for p in products:
+        if not p.search_keywords:
+            continue
+        score = sum(1 for kw in p.search_keywords if kw.lower() in name_lower)
+        if score > best_kw_score:
+            best_kw_score = score
+            best_kw_product = p
+    if best_kw_score >= 1:
+        return best_kw_product
+
+    # ---- Phase 2: legacy fuzzy match ----
     valid = [p for p in products if p.name and p.name.strip()]
 
     for p in valid:

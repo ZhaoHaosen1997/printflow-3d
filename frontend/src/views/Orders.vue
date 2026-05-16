@@ -229,7 +229,6 @@ async function handleSubmit() {
   orderSaving.value = true
   try {
     const payload = {
-      status: '待发货',
       source: 'manual',
       buyer_nickname: orderForm.value.buyer_nickname || null,
       order_time: orderForm.value.order_time ? orderForm.value.order_time + ':00' : null,
@@ -374,7 +373,7 @@ onMounted(fetchAll)
       </template>
       <template #cell-source="{ value }">
         <span class="text-xs px-2 py-0.5 rounded bg-dark-input text-gray-400">
-          {{ { paste_import: '粘贴导入', manual: '手动', wechat: '微信' }[value] || value }}
+          {{ { paste_import: '粘贴导入', manual: '手动', wechat: '微信', migrated: '旧版导入' }[value] || value }}
         </span>
       </template>
       <template #cell-order_time="{ value }">

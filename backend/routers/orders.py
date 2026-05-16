@@ -39,6 +39,8 @@ def _upsert_buyer(db: Session, nickname: str | None, province: str | None = None
         return None
     buyer = db.query(Buyer).filter(Buyer.nickname == nickname).first()
     if buyer:
+        if province and not buyer.province:
+            buyer.province = province
         return buyer.id
     buyer = Buyer(nickname=nickname, province=province)
     db.add(buyer)
@@ -201,8 +203,13 @@ def list_orders(
             q = q.filter(Order.order_time <= dt_to)
         except ValueError:
             pass
+    from sqlalchemy import case
     total = q.count()
-    orders = q.order_by(Order.order_time.desc(), Order.id.desc()).offset(offset).limit(limit).all()
+    status_priority = case(
+        (Order.status.in_(["待发货", "已发货"]), 0),
+        else_=1,
+    )
+    orders = q.order_by(status_priority, Order.order_no.desc()).offset(offset).limit(limit).all()
     for o in orders:
         o.buyer_nickname = o.buyer.nickname if o.buyer else None
     return {"items": orders, "total": total}
@@ -232,7 +239,7 @@ def create_order(data: OrderCreate, db: Session = Depends(get_db)):
         service_fee_rate=data.service_fee_rate,
         charity_fee=data.charity_fee or Decimal("0"),
         charity_fee_rate=data.charity_fee_rate,
-        province=data.province,
+        province=data.province or data.buyer_province,
         notes=data.notes,
         source=data.source,
     )

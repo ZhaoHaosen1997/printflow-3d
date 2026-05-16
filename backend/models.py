@@ -49,6 +49,7 @@ class Product(Base):
     contents = Column(JSON, nullable=True)
     material_cost = Column(Numeric(10, 2), default=0)
     charity_rate = Column(Numeric(5, 4), nullable=True)
+    search_keywords = Column(JSON, nullable=True)
     status = Column(String(20), default="active")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

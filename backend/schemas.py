@@ -153,6 +153,7 @@ class ProductBase(BaseModel):
     colors: Optional[dict] = None
     contents: Optional[List[str]] = None
     charity_rate: Optional[Decimal] = None
+    search_keywords: Optional[List[str]] = None
     status: str = "active"
 
 
@@ -171,6 +172,7 @@ class ProductUpdate(BaseModel):
     colors: Optional[dict] = None
     contents: Optional[List[str]] = None
     charity_rate: Optional[Decimal] = None
+    search_keywords: Optional[List[str]] = None
     status: Optional[str] = None
 
 
@@ -192,6 +194,7 @@ class ProductListResponse(BaseModel):
     price_bundle: Decimal
     material_cost: Decimal
     charity_rate: Optional[Decimal] = None
+    search_keywords: Optional[List[str]] = None
     image: Optional[str] = None
     bundle_items: Optional[List[int]] = None
     status: str
