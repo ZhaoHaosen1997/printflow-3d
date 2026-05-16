@@ -21,7 +21,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMAGES_DIR = os.path.join(BASE_DIR, "data", "images")
 os.makedirs(IMAGES_DIR, exist_ok=True)
 
-app = FastAPI(title="PrintFlow-3D", version="1.7.1")
+app = FastAPI(title="PrintFlow-3D", version="1.7.2")
 
 app.add_middleware(
     CORSMiddleware,
@@ -50,7 +50,7 @@ app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 @app.on_event("startup")
 def on_startup():
     init_db()
-    log_business("服务启动", "PrintFlow-3D", version="1.7.1")
+    log_business("服务启动", "PrintFlow-3D", version="1.7.2")
 
 
 @app.get("/api/health")

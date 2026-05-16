@@ -225,7 +225,6 @@ onMounted(fetchData)
                 <div class="text-gray-200 font-mono text-xs">{{ o.order_no }}</div>
                 <div v-if="o.buyer_nickname" class="text-gray-500 text-xs">{{ o.buyer_nickname }}</div>
               </td>
-              <td class="px-2 py-3 text-gray-400 text-xs">已归档</td>
               <td class="px-2 py-3 text-right text-gray-200">{{ formatAmount(o.actual_amount) }}</td>
               <td class="px-2 py-3 text-right text-gray-500 text-xs">{{ formatTime(o.archived_at) }}</td>
             </tr>

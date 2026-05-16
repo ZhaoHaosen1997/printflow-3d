@@ -196,9 +196,9 @@ onUnmounted(() => {
     <!-- Log List -->
     <div class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
       <div class="flex items-center px-4 py-2 border-b border-gray-100 bg-gray-50 text-gray-400 text-[11px] font-medium">
-        <span class="w-20 shrink-0">时间</span>
-        <span class="w-16 shrink-0">级别</span>
-        <span class="w-20 shrink-0">分类</span>
+        <span class="w-[200px] shrink-0">时间</span>
+        <span class="w-20 shrink-0">级别</span>
+        <span class="w-24 shrink-0">分类</span>
         <span>消息</span>
       </div>
 
@@ -214,12 +214,12 @@ onUnmounted(() => {
         <div
           v-for="(entry, idx) in entries"
           :key="idx"
-          class="flex items-start px-4 py-1.5 border-b border-gray-50 hover:bg-gray-50/50 transition-colors"
+          class="flex items-start px-4 py-0.5 border-b border-gray-50 hover:bg-gray-50/50 transition-colors"
           :class="levelBg[entry.level]"
         >
-          <span class="w-20 shrink-0 text-gray-400">{{ entry.time }}</span>
-          <span class="w-16 shrink-0 font-medium" :class="levelColors[entry.level]">{{ entry.level }}</span>
-          <span class="w-20 shrink-0 text-gray-500">{{ entry.category }}</span>
+          <span class="w-[200px] shrink-0 text-gray-400">{{ entry.time }}</span>
+          <span class="w-20 shrink-0 font-medium" :class="levelColors[entry.level]">{{ entry.level }}</span>
+          <span class="w-24 shrink-0 text-gray-500">{{ entry.category }}</span>
           <span class="break-all" :class="levelColors[entry.level]">{{ entry.message }}</span>
         </div>
       </div>

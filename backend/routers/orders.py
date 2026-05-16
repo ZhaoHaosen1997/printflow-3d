@@ -53,7 +53,10 @@ def _sync_buyer_stats(db: Session, buyer_id: int):
     buyer = db.query(Buyer).filter(Buyer.id == buyer_id).first()
     if not buyer:
         return
-    orders = db.query(Order).filter(Order.buyer_id == buyer_id).all()
+    orders = db.query(Order).filter(
+        Order.buyer_id == buyer_id,
+        Order.status != "archived",
+    ).all()
     buyer.total_orders = len(orders)
     buyer.total_amount = sum(
         (o.actual_amount for o in orders if o.status != "cancelled"),

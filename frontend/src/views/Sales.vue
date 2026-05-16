@@ -1,15 +1,16 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
-import { Download, TrendingUp, DollarSign, ShoppingCart, Users } from '@lucide/vue'
+import { Download, TrendingUp, DollarSign, ShoppingCart, Users, Receipt } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
-import { Bar } from 'vue-chartjs'
+import { Bar, Doughnut } from 'vue-chartjs'
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale, BarElement,
   Title, Tooltip, Legend, Filler,
+  ArcElement, DoughnutController,
 } from 'chart.js'
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, Filler)
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, Filler, ArcElement, DoughnutController)
 
 const { get } = useApi()
 
@@ -22,6 +23,71 @@ const overview = ref(null)
 const monthly = ref([])
 const products = ref([])
 const loading = ref(false)
+const cardHovered = ref(false)
+const popoverHovered = ref(false)
+const showCostPopover = computed(() => cardHovered.value || popoverHovered.value)
+
+const totalCost = computed(() => {
+  if (!overview.value) return 0
+  return Number(overview.value.total_material_cost) +
+    Number(overview.value.total_shipping_fee) +
+    Number(overview.value.total_packaging_fee) +
+    Number(overview.value.total_service_fee) +
+    Number(overview.value.total_charity_fee)
+})
+
+const costPieData = computed(() => ({
+  labels: ['材料成本', '运费', '包装费', '服务费', '公益支出'],
+  datasets: [{
+    data: overview.value ? [
+      Number(overview.value.total_material_cost),
+      Number(overview.value.total_shipping_fee),
+      Number(overview.value.total_packaging_fee),
+      Number(overview.value.total_service_fee),
+      Number(overview.value.total_charity_fee),
+    ] : [],
+    backgroundColor: [
+      'rgba(239,68,68,0.7)',
+      'rgba(251,146,60,0.7)',
+      'rgba(250,204,21,0.7)',
+      'rgba(148,163,184,0.7)',
+      'rgba(203,213,225,0.7)',
+    ],
+    borderColor: [
+      'rgba(239,68,68,0.9)',
+      'rgba(251,146,60,0.9)',
+      'rgba(250,204,21,0.9)',
+      'rgba(148,163,184,0.9)',
+      'rgba(203,213,225,0.9)',
+    ],
+    borderWidth: 1,
+  }],
+}))
+
+const costPieOptions = {
+  responsive: true,
+  maintainAspectRatio: true,
+  plugins: {
+    legend: {
+      position: 'bottom',
+      labels: { color: '#9ca3af', padding: 12, font: { size: 10 }, usePointStyle: true },
+    },
+    tooltip: {
+      backgroundColor: '#1f2937',
+      titleColor: '#d4af37',
+      bodyColor: '#e5e7eb',
+      borderColor: '#374151',
+      borderWidth: 1,
+      callbacks: {
+        label: (ctx) => {
+          const total = ctx.dataset.data.reduce((a, b) => a + b, 0)
+          const pct = total > 0 ? ((ctx.raw / total) * 100).toFixed(1) : 0
+          return `${ctx.label}: ¥${Number(ctx.raw).toFixed(2)} (${pct}%)`
+        },
+      },
+    },
+  },
+}
 
 const monthLabels = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
 
@@ -173,7 +239,7 @@ onMounted(fetchAll)
     </div>
 
     <!-- Overview Cards -->
-    <div v-if="overview" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div v-if="overview" class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
       <div class="bg-dark-card border border-border-inner rounded-lg p-4">
         <div class="flex items-center gap-2 text-gray-500 text-xs mb-2">
           <DollarSign class="w-3.5 h-3.5" />
@@ -191,6 +257,35 @@ onMounted(fetchAll)
         <div class="text-xs text-gray-600 mt-1">
           利润率 {{ overview.total_revenue > 0 ? ((overview.total_profit / overview.total_revenue) * 100).toFixed(1) : 0 }}%
         </div>
+      </div>
+      <div
+        class="bg-dark-card border border-border-inner rounded-lg p-4 relative cursor-default overflow-visible"
+        @mouseenter="cardHovered = true"
+        @mouseleave="cardHovered = false"
+      >
+        <div class="flex items-center gap-2 text-gray-500 text-xs mb-2">
+          <Receipt class="w-3.5 h-3.5" />
+          总成本
+        </div>
+        <div class="text-xl font-bold text-red-400">{{ formatCurrency(totalCost) }}</div>
+        <div class="text-xs text-gray-600 mt-1">
+          占比 {{ overview.total_revenue > 0 ? ((totalCost / overview.total_revenue) * 100).toFixed(1) : 0 }}%
+        </div>
+        <!-- Cost breakdown popover -->
+        <Transition name="popover">
+          <div
+            v-if="showCostPopover"
+            class="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-30
+                   bg-dark-card border border-border-main rounded-lg shadow-2xl p-4 w-64"
+            @mouseenter="popoverHovered = true"
+            @mouseleave="popoverHovered = false"
+          >
+            <div class="absolute left-1/2 -translate-x-1/2 bottom-full w-0 h-0
+                        border-l-8 border-r-8 border-b-8
+                        border-l-transparent border-r-transparent border-b-border-main"></div>
+            <Doughnut :data="costPieData" :options="costPieOptions" />
+          </div>
+        </Transition>
       </div>
       <div class="bg-dark-card border border-border-inner rounded-lg p-4">
         <div class="flex items-center gap-2 text-gray-500 text-xs mb-2">
@@ -280,3 +375,10 @@ onMounted(fetchAll)
     </div>
   </div>
 </template>
+
+<style scoped>
+.popover-enter-active { transition: opacity 0.15s ease, transform 0.15s ease; }
+.popover-leave-active { transition: opacity 0.1s ease, transform 0.1s ease; }
+.popover-enter-from { opacity: 0; transform: translate(-50%, 4px); }
+.popover-leave-to { opacity: 0; transform: translate(-50%, 4px); }
+</style>
