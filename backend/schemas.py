@@ -412,6 +412,118 @@ class SettingUpdate(BaseModel):
     value: str
 
 
+# ============ Print Tasks ============
+
+class PrintTaskCreate(BaseModel):
+    recipe_id: int
+    notes: Optional[str] = None
+
+
+class PrintTaskUpdate(BaseModel):
+    notes: Optional[str] = None
+    status: Optional[str] = None
+
+
+class PrintTaskFailRequest(BaseModel):
+    fail_reason: Optional[str] = None
+
+
+class RecipeInfo(BaseModel):
+    id: int
+    name: str
+    product_id: int
+    output_qty: int
+    print_time_min: Optional[int] = None
+    product_name: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PrintTaskResponse(BaseModel):
+    id: int
+    task_no: str
+    recipe_id: int
+    status: str
+    fail_reason: Optional[str] = None
+    retry_count: int
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    notes: Optional[str] = None
+    recipe: Optional[RecipeInfo] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PrintTaskListResponse(BaseModel):
+    id: int
+    task_no: str
+    recipe_id: int
+    status: str
+    fail_reason: Optional[str] = None
+    retry_count: int
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    notes: Optional[str] = None
+    recipe_name: Optional[str] = None
+    product_name: Optional[str] = None
+    product_id: Optional[int] = None
+    output_qty: Optional[int] = None
+    print_time_min: Optional[int] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PaginatedPrintTasksResponse(BaseModel):
+    items: List[PrintTaskListResponse]
+    total: int
+
+
+# ============ Buyers ============
+
+class BuyerUpdate(BaseModel):
+    nickname: Optional[str] = None
+    province: Optional[str] = None
+    tags: Optional[List[str]] = None
+    notes: Optional[str] = None
+
+
+class BuyerResponse(BaseModel):
+    id: int
+    nickname: str
+    province: Optional[str] = None
+    first_order_time: Optional[datetime] = None
+    last_order_time: Optional[datetime] = None
+    total_orders: int
+    total_amount: Decimal
+    tags: Optional[List[str]] = None
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BuyerOrderSummary(BaseModel):
+    id: int
+    order_no: str
+    status: str
+    order_time: Optional[datetime] = None
+    actual_amount: Decimal
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BuyerDetailResponse(BuyerResponse):
+    recent_orders: List[BuyerOrderSummary] = []
+
+
+class PaginatedBuyersResponse(BaseModel):
+    items: List[BuyerResponse]
+    total: int
+
+
 # ============ Common ============
 
 class MessageResponse(BaseModel):

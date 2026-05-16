@@ -132,8 +132,8 @@ discount = total_amount - actual_amount（砍价金额，不计入成本，独�
 | v1.3.0 | 成品库存联动 + 预警 + 全局设置 | ✅ |
 | v1.3.1 | 粘贴导入优化：关键词匹配 + 合集格式修正 + 省份入库 + 无括号解析 | ✅ |
 | v1.4.0 | 日志系统：文件滚动日志 + API中间件 + 前端日志查看页 + 全业务埋点 | ✅ |
-| v1.5.0 | 打印任务管理 | 🔲 |
-| v1.6.0 | 买家管理 + 标签 + 统计 | 🔲 |
+| v1.5.0 | 打印任务管理 | ✅ |
+| v1.6.0 | 买家管理 + 标签 + 统计 | ✅ |
 | v1.7.0 | 销售统计 + 利润报表（从orders实时聚合，无独立sales表）+ 数据导出 | 🔲 |
 | v1.8.0 | Nginx + systemd 生产部署 | 🔲 |
 | v1.9.0 | 商品长图生成（Jinja2 + Playwright 截图） | 🔲 |
@@ -154,7 +154,6 @@ discount = total_amount - actual_amount（砍价金额，不计入成本，独�
 10. 商品是否合集统一用 `category == 'bundle'` 判断，不使用 `is_bundle` 字段
 11. **日志埋点**：新增业务操作必须接入日志。路由层用 `log_business()`，解析层用 `log_parser()`/`log_parser_warn()`，异常用 `log_error()`。API 层由中间件自动记录，无需手动埋点。
 12. **提交时更新版本号**：每次 git commit 并推送前，须同步更新两处版本展示：
-    - `CLAUDE.md` 顶部 `v2.0` 版本号
     - `frontend/src/components/Sidebar.vue` 中版本号显示文本
     - `backend/main.py` 中 `FastAPI(title="PrintFlow-3D", version="...")`
 

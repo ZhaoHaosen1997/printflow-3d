@@ -10,6 +10,8 @@ const routes = [
   { path: '/inventories', name: 'Inventories', component: () => import('../views/Inventories.vue') },
   { path: '/settings', name: 'Settings', component: () => import('../views/Settings.vue') },
   { path: '/logs', name: 'LogViewer', component: () => import('../views/LogViewer.vue') },
+  { path: '/print-tasks', name: 'PrintTasks', component: () => import('../views/PrintTasks.vue') },
+  { path: '/buyers', name: 'Buyers', component: () => import('../views/Buyers.vue') },
 ]
 
 const router = createRouter({
