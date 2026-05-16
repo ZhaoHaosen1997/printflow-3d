@@ -97,20 +97,22 @@ def fix_color_ids(db):
 
 
 STATUS_MIGRATION = {
-    "pending": "待发货",
-    "shipped": "已发货",
-    "completed": "交易成功",
-    "cancelled": "已取消",
+    "待发货": "pending_ship",
+    "已发货": "shipped",
+    "交易成功": "completed",
+    "已取消": "cancelled",
+    "退货": "returned",
+    "已归档": "archived",
 }
 
 
 def fix_order_statuses(db):
-    """Migrate English order status values to Chinese."""
+    """Migrate Chinese order status values to English."""
     from backend.models import Order
     updated = 0
-    for eng, chn in STATUS_MIGRATION.items():
-        rows = db.query(Order).filter(Order.status == eng).update(
-            {Order.status: chn}, synchronize_session=False
+    for chn, eng in STATUS_MIGRATION.items():
+        rows = db.query(Order).filter(Order.status == chn).update(
+            {Order.status: eng}, synchronize_session=False
         )
         updated += rows
     if updated:

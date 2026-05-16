@@ -23,13 +23,13 @@ router = APIRouter(tags=["products"])
 @router.get("/products", response_model=list[ProductResponse])
 def list_products(
     category: str | None = None,
-    status: str | None = None,
+    status: str = "active",
     db: Session = Depends(get_db),
 ):
     q = db.query(Product)
     if category:
         q = q.filter(Product.category == category)
-    if status:
+    if status != "all":
         q = q.filter(Product.status == status)
     return q.order_by(Product.category, Product.name).all()
 

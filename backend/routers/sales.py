@@ -12,7 +12,7 @@ router = APIRouter(prefix="/sales", tags=["sales"])
 
 
 def _completed_orders(db: Session, date_from: str | None = None, date_to: str | None = None):
-    q = db.query(Order).filter(Order.status == "交易成功")
+    q = db.query(Order).filter(Order.status == "completed")
     if date_from:
         q = q.filter(Order.completed_time >= date_from)
     if date_to:
@@ -72,7 +72,7 @@ def sales_monthly(
     orders = (
         db.query(Order)
         .filter(
-            Order.status == "交易成功",
+            Order.status == "completed",
             extract("year", Order.completed_time) == year,
         )
         .all()

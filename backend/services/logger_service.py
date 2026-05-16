@@ -5,7 +5,7 @@
 
 用法:
     from backend.services.logger_service import log_business, log_parser, log_db, log_error, logger
-    log_business("订单状态变更", f"待发货→已发货", order_no="ORD-20260516-001")
+    log_business("订单状态变更", f"pending_ship→shipped", order_no="ORD-20260516-001")
 """
 
 import logging

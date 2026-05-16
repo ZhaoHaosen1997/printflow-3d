@@ -16,7 +16,7 @@ from backend.services.logger_service import log_business, log_parser, log_parser
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
-TERMINAL_STATUSES = {"交易成功", "已取消", "退货", "已归档"}
+TERMINAL_STATUSES = {"completed", "cancelled", "returned", "archived"}
 
 
 def _generate_order_no(db: Session) -> str:
@@ -56,7 +56,7 @@ def _sync_buyer_stats(db: Session, buyer_id: int):
     orders = db.query(Order).filter(Order.buyer_id == buyer_id).all()
     buyer.total_orders = len(orders)
     buyer.total_amount = sum(
-        (o.actual_amount for o in orders if o.status != "已取消"),
+        (o.actual_amount for o in orders if o.status != "cancelled"),
         Decimal("0"),
     )
     if orders:
@@ -181,9 +181,12 @@ def list_orders(
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
-    q = db.query(Order).filter(Order.status != "已归档")
-    if status:
-        q = q.filter(Order.status == status)
+    if status == "archived":
+        q = db.query(Order).filter(Order.status == "archived")
+    else:
+        q = db.query(Order).filter(Order.status != "archived")
+        if status:
+            q = q.filter(Order.status == status)
     if source:
         q = q.filter(Order.source == source)
     if buyer_id:
@@ -207,7 +210,7 @@ def list_orders(
     from sqlalchemy import case
     total = q.count()
     status_priority = case(
-        (Order.status.in_(["待发货", "已发货"]), 0),
+        (Order.status.in_(["pending_ship", "shipped"]), 0),
         else_=1,
     )
     orders = q.order_by(status_priority, Order.order_no.desc()).offset(offset).limit(limit).all()
@@ -268,7 +271,7 @@ def create_order(data: OrderCreate, db: Session = Depends(get_db)):
         db.add(oi)
 
     # Deduct inventory for non-cancelled orders
-    if order.status != "已取消":
+    if order.status != "cancelled":
         _deduct_order_inventory(db, data.items, db_products)
 
     db.commit()
@@ -312,9 +315,9 @@ def update_order(order_id: int, data: OrderUpdate, db: Session = Depends(get_db)
 
     # Inventory: handle status transitions to/from cancelled
     new_status = order.status
-    if new_status == "已取消" and old_status not in ("已取消", "退货"):
+    if new_status == "cancelled" and old_status not in ("cancelled", "returned"):
         _restore_order_inventory(db, order)
-    elif old_status in ("已取消", "退货") and new_status not in ("已取消", "退货"):
+    elif old_status in ("cancelled", "returned") and new_status not in ("cancelled", "returned"):
         # Re-deduct when reactivating a cancelled order
         product_ids = [item.product_id for item in order.items]
         db_products = {
@@ -366,12 +369,12 @@ def delete_order(order_id: int, db: Session = Depends(get_db)):
     if not order:
         raise HTTPException(404, "订单不存在")
     prev_status = order.status
-    order.status = "已取消"
+    order.status = "cancelled"
     order.completed_time = datetime.now(timezone.utc).replace(tzinfo=None)
     buyer_id = order.buyer_id
 
     # Restore inventory if the order was previously active (not already cancelled)
-    if prev_status not in ("已取消", "退货"):
+    if prev_status not in ("cancelled", "returned"):
         _restore_order_inventory(db, order)
 
     db.commit()

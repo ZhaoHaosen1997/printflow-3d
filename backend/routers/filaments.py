@@ -10,9 +10,9 @@ router = APIRouter(prefix="/filaments", tags=["filaments"])
 
 
 @router.get("", response_model=list[FilamentResponse])
-def list_filaments(status: str | None = None, db: Session = Depends(get_db)):
+def list_filaments(status: str = "active", db: Session = Depends(get_db)):
     q = db.query(Filament)
-    if status:
+    if status != "all":
         q = q.filter(Filament.status == status)
     return q.order_by(Filament.brand, Filament.material).all()
 

@@ -78,7 +78,7 @@ async function saveOrder(index) {
       xianyu_order_id: po.xianyu_order_id,
       buyer_nickname: po.buyer_nickname,
       buyer_province: po.buyer_province || null,
-      status: po.status || '待发货',
+      status: po.status || 'pending_ship',
       order_time: po.order_time || null,
       total_amount: Number(po.total_amount || 0),
       discount: Number(po.discount || 0),
@@ -110,9 +110,9 @@ function clearAll() {
 }
 
 const statusLabel = {
-  '待发货': '待发货',
-  '已发货': '已发货',
-  '交易成功': '交易成功',
+  pending_ship: '待发货',
+  shipped: '已发货',
+  completed: '交易成功',
 }
 </script>
 

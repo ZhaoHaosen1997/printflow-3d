@@ -229,7 +229,7 @@ class OrderCreate(BaseModel):
     xianyu_order_id: Optional[str] = None
     buyer_nickname: Optional[str] = None
     buyer_province: Optional[str] = None
-    status: str = "待发货"
+    status: str = "pending_ship"
     order_time: Optional[datetime] = None
     total_amount: Decimal = Decimal("0")
     discount: Decimal = Decimal("0")
@@ -331,7 +331,7 @@ class ParsedOrderItem(BaseModel):
 
 class ParsedOrder(BaseModel):
     xianyu_order_id: Optional[str] = None
-    status: str = "待发货"
+    status: str = "pending_ship"
     order_time: Optional[datetime] = None
     product_name: Optional[str] = None
     total_amount: Decimal = Decimal("0")

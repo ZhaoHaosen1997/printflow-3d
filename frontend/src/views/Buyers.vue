@@ -42,11 +42,11 @@ const columns = [
 ]
 
 const statusConfig = {
-  '待发货': { label: '待发货', class: 'bg-yellow-400/10 text-yellow-400 border-yellow-400/30' },
-  '已发货': { label: '已发货', class: 'bg-blue-400/10 text-blue-400 border-blue-400/30' },
-  '交易成功': { label: '交易成功', class: 'bg-green-400/10 text-green-400 border-green-400/30' },
-  '已取消': { label: '已取消', class: 'bg-gray-400/10 text-gray-400 border-gray-400/30' },
-  '退货': { label: '退货', class: 'bg-red-400/10 text-red-400 border-red-400/30' },
+  pending_ship: { label: '待发货', class: 'bg-yellow-400/10 text-yellow-400 border-yellow-400/30' },
+  shipped: { label: '已发货', class: 'bg-blue-400/10 text-blue-400 border-blue-400/30' },
+  completed: { label: '交易成功', class: 'bg-green-400/10 text-green-400 border-green-400/30' },
+  cancelled: { label: '已取消', class: 'bg-gray-400/10 text-gray-400 border-gray-400/30' },
+  returned: { label: '退货', class: 'bg-red-400/10 text-red-400 border-red-400/30' },
 }
 
 const actions = [

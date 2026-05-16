@@ -112,6 +112,17 @@ class Buyer(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+# Order status constants
+ORDER_STATUS = {
+    "pending_ship": "待发货",
+    "shipped": "已发货",
+    "completed": "交易成功",
+    "cancelled": "已取消",
+    "returned": "退货",
+    "archived": "已归档",
+}
+
+
 class Order(Base):
     __tablename__ = "orders"
 
@@ -119,7 +130,7 @@ class Order(Base):
     order_no = Column(String(50), unique=True, nullable=False)
     xianyu_order_id = Column(String(100), nullable=True)
     buyer_id = Column(Integer, ForeignKey("buyers.id"), nullable=True)
-    status = Column(String(20), default="待发货")
+    status = Column(String(20), default="pending_ship")
     order_time = Column(DateTime, nullable=True)
     ship_time = Column(DateTime, nullable=True)
     completed_time = Column(DateTime, nullable=True)

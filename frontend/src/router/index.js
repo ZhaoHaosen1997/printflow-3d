@@ -13,6 +13,7 @@ const routes = [
   { path: '/logs', name: 'LogViewer', component: () => import('../views/LogViewer.vue') },
   { path: '/print-tasks', name: 'PrintTasks', component: () => import('../views/PrintTasks.vue') },
   { path: '/buyers', name: 'Buyers', component: () => import('../views/Buyers.vue') },
+  { path: '/archived', name: 'ArchivedData', component: () => import('../views/ArchivedData.vue') },
 ]
 
 const router = createRouter({

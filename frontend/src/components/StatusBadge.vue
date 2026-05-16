@@ -10,18 +10,15 @@ const statusMap = {
   combo:        { cls: 'badge-accent',  label: '组合色' },
   archived:     { cls: 'badge-neutral', label: '已归档' },
   inactive:     { cls: 'badge-neutral', label: '停用' },
-  // Order statuses (Chinese — new)
-  '待发货':     { cls: 'badge-warning', label: '待发货' },
-  '已发货':     { cls: 'badge-info',    label: '已发货' },
-  '交易成功':   { cls: 'badge-success', label: '交易成功' },
-  '已取消':     { cls: 'badge-danger',  label: '已取消' },
-  '退货':       { cls: 'badge-danger',  label: '退货' },
-  '已归档':     { cls: 'badge-neutral', label: '已归档' },
-  // Order statuses (English — compat with old data)
-  pending:      { cls: 'badge-warning', label: '待发货' },
+  // Order statuses
+  pending_ship: { cls: 'badge-warning', label: '待发货' },
   shipped:      { cls: 'badge-info',    label: '已发货' },
   completed:    { cls: 'badge-success', label: '交易成功' },
   cancelled:    { cls: 'badge-danger',  label: '已取消' },
+  returned:     { cls: 'badge-danger',  label: '退货' },
+  archived:     { cls: 'badge-neutral', label: '已归档' },
+  // PrintTask statuses
+  pending:      { cls: 'badge-warning', label: '待处理' },
   // Product categories
   bundle:       { cls: 'badge-purple',  label: '合集' },
   counter:      { cls: 'badge-info',    label: '计数器' },

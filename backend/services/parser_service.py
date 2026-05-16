@@ -8,9 +8,9 @@ from backend.services.logger_service import log_parser, log_parser_warn
 
 
 STATUS_MAP = {
-    "待发货": "待发货",
-    "已发货": "已发货",
-    "交易成功": "交易成功",
+    "待发货": "pending_ship",
+    "已发货": "shipped",
+    "交易成功": "completed",
 }
 
 # Pattern: status → 订单编号 → order number (whitespace-insensitive)
@@ -63,7 +63,7 @@ def _parse_single_block(text: str) -> dict | None:
     clean = re.sub(r"点击复制|添加备注", "", text)
 
     # Status
-    status = "待发货"
+    status = "pending_ship"
     for key, val in STATUS_MAP.items():
         if key in text:
             status = val

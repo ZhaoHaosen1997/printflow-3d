@@ -15,11 +15,11 @@ const products = ref([])
 
 const statuses = [
   { value: '', label: '全部状态' },
-  { value: '待发货', label: '待发货' },
-  { value: '已发货', label: '已发货' },
-  { value: '交易成功', label: '交易成功' },
-  { value: '已取消', label: '已取消' },
-  { value: '退货', label: '退货' },
+  { value: 'pending_ship', label: '待发货' },
+  { value: 'shipped', label: '已发货' },
+  { value: 'completed', label: '交易成功' },
+  { value: 'cancelled', label: '已取消' },
+  { value: 'returned', label: '退货' },
 ]
 
 const filters = ref({
@@ -46,10 +46,10 @@ const columns = [
 
 const orderActions = [
   { label: '查看/编辑', handler: editOrder, class: 'btn-outline' },
-  { label: '发货', handler: shipOrder, condition: (r) => r.status === '待发货', class: 'btn-soft' },
-  { label: '完成', handler: completeOrder, condition: (r) => r.status === '已发货', class: 'btn-filled' },
-  { label: '取消', handler: cancelOrder, condition: (r) => r.status !== '已取消' && r.status !== '交易成功' && r.status !== '退货' && r.status !== '已归档', class: 'btn-danger-outline' },
-  { label: '归档', handler: archiveOrder, condition: (r) => r.status === '交易成功' || r.status === '已取消' || r.status === '退货', class: 'btn-danger-outline' },
+  { label: '发货', handler: shipOrder, condition: (r) => r.status === 'pending_ship', class: 'btn-soft' },
+  { label: '完成', handler: completeOrder, condition: (r) => r.status === 'shipped', class: 'btn-filled' },
+  { label: '取消', handler: cancelOrder, condition: (r) => r.status !== 'cancelled' && r.status !== 'completed' && r.status !== 'returned' && r.status !== 'archived', class: 'btn-danger-outline' },
+  { label: '归档', handler: archiveOrder, condition: (r) => r.status === 'completed' || r.status === 'cancelled' || r.status === 'returned', class: 'btn-danger-outline' },
 ]
 
 const modalVisible = ref(false)
@@ -155,26 +155,26 @@ function editOrder(row) {
 
 async function shipOrder(row) {
   if (!confirm(`确认发货 ${row.order_no}？`)) return
-  await put(`/api/orders/${row.id}`, { status: '已发货' })
-  row.status = '已发货'
+  await put(`/api/orders/${row.id}`, { status: 'shipped' })
+  row.status = 'shipped'
 }
 
 async function completeOrder(row) {
   if (!confirm(`确认完成 ${row.order_no}？`)) return
-  await put(`/api/orders/${row.id}`, { status: '交易成功' })
-  row.status = '交易成功'
+  await put(`/api/orders/${row.id}`, { status: 'completed' })
+  row.status = 'completed'
 }
 
 async function cancelOrder(row) {
   if (!confirm(`确定取消 ${row.order_no}？`)) return
   await del(`/api/orders/${row.id}`)
-  row.status = '已取消'
+  row.status = 'cancelled'
 }
 
 async function archiveOrder(row) {
   if (!confirm(`确定归档 ${row.order_no}？归档后将从活跃列表隐藏。`)) return
-  await put(`/api/orders/${row.id}`, { status: '已归档' })
-  row.status = '已归档'
+  await put(`/api/orders/${row.id}`, { status: 'archived' })
+  row.status = 'archived'
 }
 
 function addOrderItem() {
