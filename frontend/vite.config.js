@@ -16,4 +16,5 @@ export default defineConfig({
       },
     },
   },
+  // Production: built files served by nginx from frontend/dist/
 })

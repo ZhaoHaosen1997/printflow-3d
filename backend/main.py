@@ -21,11 +21,16 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMAGES_DIR = os.path.join(BASE_DIR, "data", "images")
 os.makedirs(IMAGES_DIR, exist_ok=True)
 
-app = FastAPI(title="PrintFlow-3D", version="1.7.3")
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:5173,http://localhost:18848"
+).split(",")
+
+app = FastAPI(title="PrintFlow-3D", version="1.8.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -50,7 +55,7 @@ app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 @app.on_event("startup")
 def on_startup():
     init_db()
-    log_business("服务启动", "PrintFlow-3D", version="1.7.3")
+    log_business("服务启动", "PrintFlow-3D", version="1.8.0")
 
 
 @app.get("/api/health")
