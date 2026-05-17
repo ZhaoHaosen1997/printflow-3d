@@ -1,7 +1,10 @@
 from datetime import datetime, timezone
 from decimal import Decimal
+from io import StringIO
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import case
 from backend.database import get_db
 from backend.models import Order, OrderItem, Buyer, Product, Inventory
 from backend.schemas import (
@@ -13,6 +16,7 @@ from backend.schemas import (
 )
 from backend.services.parser_service import parse_order_text, match_products
 from backend.services.logger_service import log_business, log_parser, log_parser_warn, log_error
+from backend.services.inventory_service import ensure_inventory
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -94,35 +98,30 @@ def _fill_order_defaults(data: OrderCreate, db: Session):
     if data.service_fee is None:
         data.service_fee = (data.actual_amount * data.service_fee_rate).quantize(Decimal("0.01"))
 
+    # Batch-load all referenced products
+    pids = [item.product_id for item in data.items]
+    db_products = {
+        p.id: p
+        for p in db.query(Product).filter(Product.id.in_(pids)).all()
+    } if pids else {}
+
     if data.packaging_fee is None:
         # Check if any item is a bundle to decide packaging fee
-        is_bundle = False
-        for item in data.items:
-            product = db.query(Product).filter(Product.id == item.product_id).first()
-            if product and product.category == "bundle":
-                is_bundle = True
-                break
+        is_bundle = any(
+            db_products.get(item.product_id) and db_products[item.product_id].category == "bundle"
+            for item in data.items
+        )
         data.packaging_fee = s["packaging_fee_bundle"] if is_bundle else s["packaging_fee"]
 
     if data.charity_fee_rate is None:
         for item in data.items:
-            product = db.query(Product).filter(Product.id == item.product_id).first()
+            product = db_products.get(item.product_id)
             if product and product.charity_rate is not None:
                 data.charity_fee_rate = product.charity_rate
                 break
 
     if data.charity_fee is None and data.charity_fee_rate is not None:
         data.charity_fee = (data.actual_amount * data.charity_fee_rate).quantize(Decimal("0.01"))
-
-
-def _ensure_inventory(db: Session, product_id: int) -> Inventory:
-    """Get or create inventory record for a product."""
-    inv = db.query(Inventory).filter(Inventory.product_id == product_id).first()
-    if not inv:
-        inv = Inventory(product_id=product_id, quantity=0, warning_threshold=5)
-        db.add(inv)
-        db.flush()
-    return inv
 
 
 def _deduct_order_inventory(db: Session, order_items: list, db_products: dict):
@@ -137,14 +136,14 @@ def _deduct_order_inventory(db: Session, order_items: list, db_products: dict):
         if product.category == "bundle" and product.bundle_items:
             # Token合集包：按固定子商品列表展开扣减
             for child_id in product.bundle_items:
-                _ensure_inventory(db, child_id)
+                ensure_inventory(db, child_id)
                 inv = db.query(Inventory).filter(Inventory.product_id == child_id).first()
                 inv.quantity = max(0, inv.quantity - qty)
         elif product.category == "bundle":
             # 自选合集：子商品已在 order_items 中逐项列出，合集自身不扣库存
             continue
         else:
-            _ensure_inventory(db, pid)
+            ensure_inventory(db, pid)
             inv = db.query(Inventory).filter(Inventory.product_id == pid).first()
             inv.quantity = max(0, inv.quantity - qty)
 
@@ -158,13 +157,13 @@ def _restore_order_inventory(db: Session, order: Order):
 
         if product.category == "bundle" and product.bundle_items:
             for child_id in product.bundle_items:
-                inv = _ensure_inventory(db, child_id)
+                inv = ensure_inventory(db, child_id)
                 inv.quantity += item.quantity
         elif product.category == "bundle":
             # 自选合集：子商品已在 order_items 中逐项列出，合集自身不恢复库存
             continue
         else:
-            inv = _ensure_inventory(db, item.product_id)
+            inv = ensure_inventory(db, item.product_id)
             inv.quantity += item.quantity
 
 
@@ -210,13 +209,18 @@ def list_orders(
             q = q.filter(Order.order_time <= dt_to)
         except ValueError:
             pass
-    from sqlalchemy import case
     total = q.count()
     status_priority = case(
         (Order.status.in_(["pending_ship", "shipped"]), 0),
         else_=1,
     )
-    orders = q.order_by(status_priority, Order.order_no.desc()).offset(offset).limit(limit).all()
+    orders = (
+        q.options(selectinload(Order.buyer), selectinload(Order.items))
+        .order_by(status_priority, Order.order_no.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
     for o in orders:
         o.buyer_nickname = o.buyer.nickname if o.buyer else None
     return {"items": orders, "total": total}
@@ -289,6 +293,140 @@ def create_order(data: OrderCreate, db: Session = Depends(get_db)):
     return order
 
 
+# ============ Orders Export ============
+
+
+@router.get("/export")
+def orders_export(
+    status: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    product_id: int | None = None,
+    db: Session = Depends(get_db),
+):
+    """Export filtered orders with items as CSV."""
+    if status == "archived":
+        q = db.query(Order).filter(Order.status == "archived")
+    else:
+        q = db.query(Order).filter(Order.status != "archived")
+        if status:
+            q = q.filter(Order.status == status)
+    if product_id:
+        q = q.join(OrderItem, Order.id == OrderItem.order_id).filter(OrderItem.product_id == product_id)
+    if date_from:
+        try:
+            q = q.filter(Order.order_time >= datetime.fromisoformat(date_from))
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            q = q.filter(Order.order_time <= datetime.fromisoformat(date_to))
+        except ValueError:
+            pass
+
+    status_priority = case(
+        (Order.status.in_(["pending_ship", "shipped"]), 0),
+        else_=1,
+    )
+    orders = q.order_by(status_priority, Order.order_no.desc()).all()
+
+    output = StringIO()
+    output.write("订单编号,闲鱼订单号,买家,状态,下单时间,完成时间,商品名称,数量,单价,材料成本,原价总额,实付金额,运费,包装费,服务费,公益支出,砍价,来源,备注\n")
+
+    STATUS_LABEL = {
+        "pending_ship": "待发货", "shipped": "已发货", "completed": "交易成功",
+        "cancelled": "已取消", "returned": "退货", "archived": "已归档",
+    }
+    SOURCE_LABEL = {
+        "paste_import": "粘贴导入", "manual": "手动", "wechat": "微信", "migrated": "旧版导入",
+    }
+
+    for o in orders:
+        buyer_name = o.buyer.nickname if o.buyer else ""
+        o_time = o.order_time.strftime("%Y-%m-%d %H:%M") if o.order_time else ""
+        c_time = o.completed_time.strftime("%Y-%m-%d %H:%M") if o.completed_time else ""
+        source_label = SOURCE_LABEL.get(o.source, o.source or "")
+
+        items = o.items
+        if not items:
+            output.write(
+                f'"{o.order_no}",'
+                f'"{o.xianyu_order_id or ""}",'
+                f'"{buyer_name}",'
+                f'"{STATUS_LABEL.get(o.status, o.status)}",'
+                f'"{o_time}",'
+                f'"{c_time}",'
+                f'"",,'
+                f'0,0,'
+                f'{o.total_amount},'
+                f'{o.actual_amount},'
+                f'{o.shipping_fee},'
+                f'{o.packaging_fee},'
+                f'{o.service_fee},'
+                f'{o.charity_fee},'
+                f'{o.discount},'
+                f'"{source_label}",'
+                f'"{o.notes or ""}"\n'
+            )
+        elif len(items) == 1:
+            item = items[0]
+            output.write(
+                f'"{o.order_no}",'
+                f'"{o.xianyu_order_id or ""}",'
+                f'"{buyer_name}",'
+                f'"{STATUS_LABEL.get(o.status, o.status)}",'
+                f'"{o_time}",'
+                f'"{c_time}",'
+                f'"{item.product_name or ""}",'
+                f'{item.quantity},'
+                f'{item.unit_price},'
+                f'{item.material_cost},'
+                f'{o.total_amount},'
+                f'{o.actual_amount},'
+                f'{o.shipping_fee},'
+                f'{o.packaging_fee},'
+                f'{o.service_fee},'
+                f'{o.charity_fee},'
+                f'{o.discount},'
+                f'"{source_label}",'
+                f'"{o.notes or ""}"\n'
+            )
+        else:
+            # Multi-item → 自选合集
+            names = " / ".join(item.product_name or "" for item in items)
+            qtys = " / ".join(f"{item.product_name or '?'} {item.quantity}个" for item in items)
+            price_sum = sum(item.unit_price or Decimal("0") for item in items)
+            cost_sum = sum(item.material_cost or Decimal("0") for item in items)
+            output.write(
+                f'"{o.order_no}",'
+                f'"{o.xianyu_order_id or ""}",'
+                f'"{buyer_name}",'
+                f'"{STATUS_LABEL.get(o.status, o.status)}",'
+                f'"{o_time}",'
+                f'"{c_time}",'
+                f'"自选合集",'
+                f'"{qtys}",'
+                f'{price_sum},'
+                f'{cost_sum},'
+                f'{o.total_amount},'
+                f'{o.actual_amount},'
+                f'{o.shipping_fee},'
+                f'{o.packaging_fee},'
+                f'{o.service_fee},'
+                f'{o.charity_fee},'
+                f'{o.discount},'
+                f'"{source_label}",'
+                f'"{o.notes or ""}"\n'
+            )
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=orders_export.csv"},
+    )
+
+
 @router.get("/{order_id}", response_model=OrderResponse)
 def get_order(order_id: int, db: Session = Depends(get_db)):
     order = db.query(Order).filter(Order.id == order_id).first()
@@ -340,8 +478,13 @@ def update_order(order_id: int, data: OrderUpdate, db: Session = Depends(get_db)
         order.completed_time = None
 
     if items_data is not None:
+        # Restore old items' inventory if order is in an active (deducted) status
+        if order.status not in ("cancelled", "returned", "archived"):
+            _restore_order_inventory(db, order)
+
         # Replace all order items
         db.query(OrderItem).filter(OrderItem.order_id == order.id).delete()
+        product_ids = []
         for item_data in items_data:
             product = db.query(Product).filter(Product.id == item_data["product_id"]).first()
             oi = OrderItem(
@@ -353,6 +496,15 @@ def update_order(order_id: int, data: OrderUpdate, db: Session = Depends(get_db)
                 material_cost=item_data.get("material_cost", Decimal("0")),
             )
             db.add(oi)
+            product_ids.append(oi.product_id)
+
+        # Deduct new items' inventory if order is still active
+        if order.status not in ("cancelled", "returned", "archived"):
+            db_products = {
+                p.id: p
+                for p in db.query(Product).filter(Product.id.in_(product_ids)).all()
+            }
+            _deduct_order_inventory(db, items_data, db_products)
 
     db.commit()
     db.refresh(order)

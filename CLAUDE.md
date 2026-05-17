@@ -40,8 +40,6 @@ printflow-3d/
 │       ├── components/ # 公共组件
 │       └── composables/ # useApi, useOrders, useProducts
 ├── data/app.db
-├── old_data/        # 旧版 JSON，永久保留，禁止删除
-├── scripts/migrate.py / merge_xianyu.py
 ├── requirements.txt
 └── nginx.conf
 ```
@@ -128,7 +126,6 @@ discount = total_amount - actual_amount（砍价金额，不计入成本，独�
 |------|------|------|
 | v1.0.0 | 后端骨架 + DB初始化 + **配色CRUD（最先）** + 耗材CRUD + 商品/配方CRUD + Vue前端框架 | ✅ |
 | v1.1.0 | 订单管理 + 粘贴导入 + 商品匹配/合集展开 | ✅ |
-| v1.2.0 | 旧数据迁移脚本（JSON → SQLite） | ✅ |
 | v1.3.0 | 成品库存联动 + 预警 + 全局设置 | ✅ |
 | v1.3.1 | 粘贴导入优化：关键词匹配 + 合集格式修正 + 省份入库 + 无括号解析 | ✅ |
 | v1.4.0 | 日志系统：文件滚动日志 + API中间件 + 前端日志查看页 + 全业务埋点 | ✅ |
@@ -146,14 +143,13 @@ discount = total_amount - actual_amount（砍价金额，不计入成本，独�
 2. 先在 Windows 环境测试，再部署 WSL
 3. 测试通过后 git commit，版本号按实际修改内容自动生成
 4. 优先开发核心差异化功能：粘贴导入订单
-5. `old_data/` 目录只读，禁止删除或修改
-6. 后端：路由层只做分发，业务逻辑全放 services 层
-7. 禁止手动填写材料费，全部自动计算
-8. 禁止在 `print_recipes` 表中持久化 `calculated_material_cost` / `unit_material_cost`，必须实时计算
-9. `products.xianyu_item_id` 允许为空（未上架闲鱼的商品也能录入），但不能重复
-10. 商品是否合集统一用 `category == 'bundle'` 判断，不使用 `is_bundle` 字段
-11. **日志埋点**：新增业务操作必须接入日志。路由层用 `log_business()`，解析层用 `log_parser()`/`log_parser_warn()`，异常用 `log_error()`。API 层由中间件自动记录，无需手动埋点。
-12. **提交时更新版本号**：每次 git commit 并推送前，须同步更新两处版本展示：
+5. 后端：路由层只做分发，业务逻辑全放 services 层
+6. 禁止手动填写材料费，全部自动计算
+7. 禁止在 `print_recipes` 表中持久化 `calculated_material_cost` / `unit_material_cost`，必须实时计算
+8. `products.xianyu_item_id` 允许为空（未上架闲鱼的商品也能录入），但不能重复
+9. 商品是否合集统一用 `category == 'bundle'` 判断，不使用 `is_bundle` 字段
+10. **日志埋点**：新增业务操作必须接入日志。路由层用 `log_business()`，解析层用 `log_parser()`/`log_parser_warn()`，异常用 `log_error()`。API 层由中间件自动记录，无需手动埋点。
+11. **提交时更新版本号**：每次 git commit 并推送前，须同步更新两处版本展示：
     - `frontend/src/components/Sidebar.vue` 中版本号显示文本
     - `backend/main.py` 中 `FastAPI(title="PrintFlow-3D", version="...")`
 

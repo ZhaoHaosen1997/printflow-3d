@@ -310,10 +310,10 @@ async function handleRecipeSubmit() {
       await put(`/api/recipes/${editingRecipe.value.id}`, payload)
       // update filaments: delete all existing, re-add
       for (const rf of (editingRecipe.value.recipe_filaments || [])) {
-        try { await del(`/api/recipe-filaments/${rf.id}`) } catch {}
+        try { await del(`/api/recipe-filaments/${rf.id}`) } catch { /* best-effort */ }
       }
       for (const f of filaments) {
-        try { await post(`/api/recipes/${editingRecipe.value.id}/filaments`, f) } catch {}
+        try { await post(`/api/recipes/${editingRecipe.value.id}/filaments`, f) } catch { /* best-effort */ }
       }
     } else {
       await post(`/api/products/${recipeProduct.value.id}/recipes`, {

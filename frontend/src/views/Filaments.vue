@@ -82,7 +82,9 @@ async function archiveFilament(row) {
   try {
     await del(`/api/filaments/${row.id}`)
     row.status = 'archived'
-  } catch {}
+  } catch (e) {
+    alert('归档耗材失败: ' + (e.message || e))
+  }
 }
 
 async function handleSubmit() {

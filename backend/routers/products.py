@@ -1,6 +1,6 @@
 from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from backend.database import get_db
 from backend.models import Product, PrintRecipe, PrintRecipeFilament, Inventory
 from backend.schemas import (
@@ -26,7 +26,9 @@ def list_products(
     status: str = "active",
     db: Session = Depends(get_db),
 ):
-    q = db.query(Product)
+    q = db.query(Product).options(
+        selectinload(Product.recipes).selectinload(PrintRecipe.recipe_filaments)
+    )
     if category:
         q = q.filter(Product.category == category)
     if status != "all":

@@ -14,11 +14,15 @@ const routes = [
   { path: '/print-tasks', name: 'PrintTasks', component: () => import('../views/PrintTasks.vue') },
   { path: '/buyers', name: 'Buyers', component: () => import('../views/Buyers.vue') },
   { path: '/archived', name: 'ArchivedData', component: () => import('../views/ArchivedData.vue') },
+  { path: '/:pathMatch(.*)*', redirect: '/sales' },
 ]
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
+  scrollBehavior() {
+    return { top: 0 }
+  },
 })
 
 export default router

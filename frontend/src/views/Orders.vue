@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { Plus, X, Search } from '@lucide/vue'
+import { Plus, X, Search, Download } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
 import DataTable from '../components/DataTable.vue'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -58,7 +58,7 @@ const orderSaving = ref(false)
 
 const orderForm = ref({
   order_time: '',
-  actual_amount: 0,
+  actual_amount: null,
   shipping_fee: null,
   packaging_fee: null,
   service_fee: null,
@@ -105,10 +105,34 @@ function goPage(page) {
   fetchAll()
 }
 
+async function exportCSV() {
+  const params = new URLSearchParams()
+  const f = filters.value
+  if (f.status) params.set('status', f.status)
+  if (f.date_from) params.set('date_from', f.date_from)
+  if (f.date_to) params.set('date_to', f.date_to)
+  if (f.product_id) params.set('product_id', f.product_id)
+  try {
+    const res = await fetch(`/api/orders/export?${params}`)
+    if (!res.ok) throw new Error('导出失败')
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'orders_export.csv'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  } catch (e) {
+    alert('CSV导出失败，请重试')
+  }
+}
+
 function resetForm() {
   orderForm.value = {
     order_time: new Date().toISOString().slice(0, 16),
-    actual_amount: 0,
+    actual_amount: null,
     shipping_fee: null,
     packaging_fee: null,
     service_fee: null,
@@ -211,8 +235,8 @@ function recalcTotal() {
   for (const item of orderForm.value.items) {
     total += (Number(item.unit_price) || 0) * (Number(item.quantity) || 1)
   }
-  // auto-calc actual = total if not set
-  if (!orderForm.value.actual_amount || orderForm.value.actual_amount === 0) {
+  // auto-calc actual = total if not explicitly set (null means untouched)
+  if (orderForm.value.actual_amount == null) {
     orderForm.value.actual_amount = Math.round(total * 100) / 100
   }
 }
@@ -275,6 +299,14 @@ onMounted(fetchAll)
         <p class="text-sm text-gold-muted mt-1">管理订单、粘贴导入、跟踪发货状态</p>
       </div>
       <div class="flex gap-2">
+        <button
+          class="flex items-center gap-2 px-4 py-2 bg-gold/20 text-gold border border-gold/30 rounded-lg
+                 hover:bg-gold/30 transition-colors text-sm"
+          @click="openCreate"
+        >
+          <Plus class="w-4 h-4" />
+          新增订单
+        </button>
         <router-link
           to="/paste-import"
           class="flex items-center gap-2 px-4 py-2 bg-gold/20 text-gold border border-gold/30 rounded-lg
@@ -284,12 +316,12 @@ onMounted(fetchAll)
           粘贴导入
         </router-link>
         <button
-          class="flex items-center gap-2 px-4 py-2 bg-gold/20 text-gold border border-gold/30 rounded-lg
-                 hover:bg-gold/30 transition-colors text-sm"
-          @click="openCreate"
+          class="flex items-center gap-2 px-4 py-2 bg-dark-card border border-border-inner text-gray-400 rounded-lg
+                 hover:text-gray-200 hover:bg-dark-input transition-colors text-sm"
+          @click="exportCSV"
         >
-          <Plus class="w-4 h-4" />
-          新增订单
+          <Download class="w-4 h-4" />
+          导出CSV
         </button>
       </div>
     </div>

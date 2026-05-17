@@ -69,7 +69,7 @@ class PrintRecipe(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(200), nullable=False)
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
     output_qty = Column(Integer, default=1)
     print_time_min = Column(Integer, nullable=True)
     print_count = Column(Integer, default=0)
@@ -100,7 +100,7 @@ class Buyer(Base):
     __tablename__ = "buyers"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    nickname = Column(String(100), nullable=False)
+    nickname = Column(String(100), nullable=False, index=True)
     province = Column(String(50), nullable=True)
     first_order_time = Column(DateTime, nullable=True)
     last_order_time = Column(DateTime, nullable=True)
@@ -129,11 +129,11 @@ class Order(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     order_no = Column(String(50), unique=True, nullable=False)
     xianyu_order_id = Column(String(100), nullable=True)
-    buyer_id = Column(Integer, ForeignKey("buyers.id"), nullable=True)
-    status = Column(String(20), default="pending_ship")
-    order_time = Column(DateTime, nullable=True)
+    buyer_id = Column(Integer, ForeignKey("buyers.id"), nullable=True, index=True)
+    status = Column(String(20), default="pending_ship", index=True)
+    order_time = Column(DateTime, nullable=True, index=True)
     ship_time = Column(DateTime, nullable=True)
-    completed_time = Column(DateTime, nullable=True)
+    completed_time = Column(DateTime, nullable=True, index=True)
     total_amount = Column(Numeric(10, 2), default=0)
     discount = Column(Numeric(10, 2), default=0)
     actual_amount = Column(Numeric(10, 2), default=0)
@@ -157,8 +157,8 @@ class OrderItem(Base):
     __tablename__ = "order_items"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
     product_name = Column(String(200), nullable=True)
     quantity = Column(Integer, default=1)
     unit_price = Column(Numeric(10, 2), default=0)
@@ -187,8 +187,8 @@ class PrintTask(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     task_no = Column(String(50), unique=True, nullable=False)
-    recipe_id = Column(Integer, ForeignKey("print_recipes.id"), nullable=False)
-    status = Column(String(20), default="pending")
+    recipe_id = Column(Integer, ForeignKey("print_recipes.id"), nullable=False, index=True)
+    status = Column(String(20), default="pending", index=True)
     fail_reason = Column(Text, nullable=True)
     retry_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)

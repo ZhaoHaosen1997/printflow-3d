@@ -1,18 +1,22 @@
 from decimal import Decimal
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from backend.models import PrintRecipe, PrintRecipeFilament, Product, Filament
 
 
 def calculate_recipe_cost(db: Session, recipe_id: int) -> dict:
-    recipe = db.query(PrintRecipe).filter(PrintRecipe.id == recipe_id).first()
+    recipe = (
+        db.query(PrintRecipe)
+        .options(joinedload(PrintRecipe.recipe_filaments).joinedload(PrintRecipeFilament.filament))
+        .filter(PrintRecipe.id == recipe_id)
+        .first()
+    )
     if not recipe or not recipe.recipe_filaments:
         return {"total_cost": Decimal("0"), "unit_cost": Decimal("0")}
 
     total = Decimal("0")
     for rf in recipe.recipe_filaments:
-        filament = db.query(Filament).filter(Filament.id == rf.filament_id).first()
-        if filament and filament.price_per_kg:
-            total += rf.grams * filament.price_per_kg / Decimal("1000")
+        if rf.filament and rf.filament.price_per_kg:
+            total += rf.grams * rf.filament.price_per_kg / Decimal("1000")
 
     total = total.quantize(Decimal("0.01"))
     unit_cost = (total / recipe.output_qty).quantize(Decimal("0.01")) if recipe.output_qty else Decimal("0")

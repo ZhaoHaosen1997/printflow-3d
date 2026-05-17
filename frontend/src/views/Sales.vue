@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
-import { Download, TrendingUp, DollarSign, ShoppingCart, Users, Receipt } from '@lucide/vue'
+import { TrendingUp, DollarSign, ShoppingCart, Users, Receipt } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
 import { Bar, Doughnut } from 'vue-chartjs'
 import {
@@ -159,20 +159,6 @@ const chartOptions = computed(() => ({
   },
 }))
 
-async function exportCSV() {
-  const params = new URLSearchParams()
-  if (dateFrom.value) params.set('date_from', dateFrom.value)
-  if (dateTo.value) params.set('date_to', dateTo.value)
-  const res = await fetch(`/api/sales/export?${params}`)
-  const blob = await res.blob()
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'sales_export.csv'
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
 function formatCurrency(val) {
   if (val == null) return '-'
   return `¥${Number(val).toFixed(2)}`
@@ -205,14 +191,6 @@ onMounted(fetchAll)
         >
           <option v-for="y in [2024,2025,2026,2027,2028]" :key="y" :value="y">{{ y }}年</option>
         </select>
-        <button
-          class="flex items-center gap-2 px-4 py-2 bg-dark-card border border-border-inner text-gray-400 rounded-md
-                 hover:text-gray-200 hover:bg-dark-input transition-colors text-sm"
-          @click="exportCSV"
-        >
-          <Download class="w-4 h-4" />
-          导出CSV
-        </button>
       </div>
     </div>
 

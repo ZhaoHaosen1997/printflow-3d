@@ -80,7 +80,9 @@ async function ensureAll() {
   try {
     await post('/api/inventories/ensure-all')
     await fetchInventories()
-  } catch {}
+  } catch (e) {
+    alert('同步库存失败: ' + (e.message || e))
+  }
 }
 
 function stockStatus(row) {

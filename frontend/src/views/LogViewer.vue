@@ -80,7 +80,9 @@ async function fetchLogs(reset = false) {
 async function fetchInfo() {
   try {
     logInfo.value = await get('/api/logs/info')
-  } catch {}
+  } catch {
+    // log info is non-critical, ignore
+  }
 }
 
 function clearFilters() {

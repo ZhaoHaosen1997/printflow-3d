@@ -31,10 +31,10 @@ const sampleText = `待发货
 35.19
 包邮
 
-CowBy16
-王星杰
-18961338180
-江苏省连云港市海州区新浦街道凌州西路20号新月园1期`
+玩家小明
+张三
+13800138000
+北京市朝阳区建国路100号示例小区1栋`
 
 async function handleParse() {
   if (!pasteText.value.trim()) return

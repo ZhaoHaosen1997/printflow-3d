@@ -104,23 +104,39 @@ async function handleCreate() {
 }
 
 async function startTask(id) {
-  await post(`/api/print-tasks/${id}/start`)
-  await fetchTasks()
+  try {
+    await post(`/api/print-tasks/${id}/start`)
+    await fetchTasks()
+  } catch (e) {
+    alert('启动任务失败: ' + (e.message || e))
+  }
 }
 
 async function completeTask(id) {
-  await post(`/api/print-tasks/${id}/complete`)
-  await fetchTasks()
+  try {
+    await post(`/api/print-tasks/${id}/complete`)
+    await fetchTasks()
+  } catch (e) {
+    alert('完成任务失败: ' + (e.message || e))
+  }
 }
 
 async function failTask(id) {
-  await post(`/api/print-tasks/${id}/fail`, { fail_reason: null })
-  await fetchTasks()
+  try {
+    await post(`/api/print-tasks/${id}/fail`, { fail_reason: null })
+    await fetchTasks()
+  } catch (e) {
+    alert('标记失败失败: ' + (e.message || e))
+  }
 }
 
 async function cancelTask(id) {
-  await post(`/api/print-tasks/${id}/cancel`)
-  await fetchTasks()
+  try {
+    await post(`/api/print-tasks/${id}/cancel`)
+    await fetchTasks()
+  } catch (e) {
+    alert('取消任务失败: ' + (e.message || e))
+  }
 }
 
 function formatTime(val) {

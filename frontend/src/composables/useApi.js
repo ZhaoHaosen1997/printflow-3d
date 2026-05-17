@@ -3,8 +3,10 @@ import { ref } from 'vue'
 export function useApi() {
   const loading = ref(false)
   const error = ref(null)
+  let pendingCount = 0
 
   async function request(endpoint, options = {}) {
+    pendingCount++
     loading.value = true
     error.value = null
     try {
@@ -23,7 +25,8 @@ export function useApi() {
       if (!error.value) error.value = e.message
       throw e
     } finally {
-      loading.value = false
+      pendingCount--
+      if (pendingCount === 0) loading.value = false
     }
   }
 
@@ -45,8 +48,12 @@ export function useApi() {
     })
   }
 
-  function del(endpoint) {
-    return request(endpoint, { method: 'DELETE' })
+  function del(endpoint, body) {
+    const options = { method: 'DELETE' }
+    if (body) {
+      options.body = JSON.stringify(body)
+    }
+    return request(endpoint, options)
   }
 
   return { loading, error, get, post, put, del }

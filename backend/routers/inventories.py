@@ -7,29 +7,20 @@ from backend.schemas import (
     MessageResponse,
 )
 from backend.services.logger_service import log_business
+from backend.services.inventory_service import ensure_inventory
 
 router = APIRouter(prefix="/inventories", tags=["inventories"])
 
 
-def _ensure_inventory(db: Session, product_id: int) -> Inventory:
-    """Get or create inventory record for a product."""
-    inv = db.query(Inventory).filter(Inventory.product_id == product_id).first()
-    if not inv:
-        inv = Inventory(product_id=product_id, quantity=0, warning_threshold=5)
-        db.add(inv)
-        db.flush()
-    return inv
-
-
 def _deduct_inventory(db: Session, product_id: int, quantity: int):
     """Deduct stock for a product. Auto-creates inventory record if missing."""
-    inv = _ensure_inventory(db, product_id)
+    inv = ensure_inventory(db, product_id)
     inv.quantity = max(0, inv.quantity - quantity)
 
 
 def _add_inventory(db: Session, product_id: int, quantity: int):
     """Add stock for a product. Auto-creates inventory record if missing."""
-    inv = _ensure_inventory(db, product_id)
+    inv = ensure_inventory(db, product_id)
     inv.quantity += quantity
 
 
@@ -45,7 +36,7 @@ def list_inventories(db: Session = Depends(get_db)):
 
     result = []
     for p in products:
-        inv = _ensure_inventory(db, p.id)
+        inv = ensure_inventory(db, p.id)
         result.append({
             "id": inv.id,
             "product_id": p.id,

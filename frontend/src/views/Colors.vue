@@ -60,7 +60,9 @@ async function confirmDelete(color) {
   try {
     await del(`/api/colors/${color.id}`)
     fetchColors()
-  } catch {}
+  } catch (e) {
+    alert('删除颜色失败: ' + (e.message || e))
+  }
 }
 
 function addSwatch() {
