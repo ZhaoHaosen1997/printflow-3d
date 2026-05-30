@@ -338,7 +338,7 @@ def orders_export(
         "cancelled": "已取消", "returned": "退货", "archived": "已归档",
     }
     SOURCE_LABEL = {
-        "paste_import": "粘贴导入", "manual": "手动", "wechat": "微信", "migrated": "旧版导入",
+        "paste_import": "粘贴导入", "manual": "手动", "wechat": "微信", "migrated": "旧版导入", "image_import": "识图导入",
     }
 
     for o in orders:

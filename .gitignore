@@ -29,3 +29,7 @@ old_version/
 scripts/
 .workbuddy/
 .claude/
+
+# Windows local scripts (not deployed to Pi)
+*.bat
+setup_wsl.sh

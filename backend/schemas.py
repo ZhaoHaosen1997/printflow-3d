@@ -247,6 +247,7 @@ class OrderCreate(BaseModel):
 
 
 class OrderUpdate(BaseModel):
+    xianyu_order_id: Optional[str] = None
     buyer_id: Optional[int] = None
     buyer_nickname: Optional[str] = None
     status: Optional[str] = None

@@ -1,15 +1,14 @@
 [Unit]
-Description=PrintFlow-3D Backend
+Description=PrintFlow-3D
 After=network.target
 
 [Service]
 Type=simple
 User=zhaohaosen
-Group=zhaohaosen
 WorkingDirectory=/home/zhaohaosen/applications/printflow-3d
-Environment=PATH=/home/zhaohaosen/applications/printflow-3d/venv/bin:/usr/local/bin:/usr/bin:/bin
-Environment=ALLOWED_ORIGINS=http://localhost:5173,http://localhost:18848
-ExecStart=/home/zhaohaosen/applications/printflow-3d/venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8848
+Environment=PATH=/home/zhaohaosen/.venvs/printflow/bin:/usr/local/bin:/usr/bin:/bin
+Environment=ALLOWED_ORIGINS=http://localhost:5173,http://192.163.20.150:8848,http://localhost:8848
+ExecStart=/home/zhaohaosen/.venvs/printflow/bin/python -m uvicorn backend.main:app --host 0.0.0.0 --port 8848
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal

@@ -23,6 +23,7 @@ const saving = ref(false)
 const tagOptions = [
   { value: '老客户', label: '老客户', class: 'bg-blue-400/10 text-blue-400 border-blue-400/30' },
   { value: '大户', label: '大户', class: 'bg-green-400/10 text-green-400 border-green-400/30' },
+  { value: '好评', label: '好评', class: 'bg-emerald-400/10 text-emerald-400 border-emerald-400/30' },
   { value: '问题客户', label: '问题客户', class: 'bg-red-400/10 text-red-400 border-red-400/30' },
 ]
 

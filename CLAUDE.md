@@ -4,8 +4,9 @@
 
 - **项目名**：printflow-3d（3D打印商品管理工具 v2.0）
 - **定位**：个人闲鱼3D打印副业管理系统，覆盖商品/耗材/订单/买家/库存/打印任务/销售统计全链路
-- **运行环境**：WSL2 Debian（与云服务器环境一致）
-- **访问方式**：Windows 浏览器 → `http://localhost:8848`
+- **运行环境**：Raspberry Pi（Debian aarch64，内网部署）
+- **访问方式**：浏览器 → `http://<pi-lan-ip>:8848`
+- **部署方式**：双击 `deploy.bat` → rsync 推送代码至 Pi → 自动重启服务
 
 ---
 
@@ -14,8 +15,8 @@
 ### 后端
 - **FastAPI** (Python 3.11+)，SQLAlchemy ORM，Pydantic 校验
 - **SQLite**（单用户，`data/app.db`），预留一键切换 PostgreSQL
-- **Nginx**：`:18848` 反向代理至 `:8848`
-- **systemd**：WSL2 开机自启，暂不引入 Redis
+- **前端直挂**：FastAPI 内置 `FileResponse` 挂载 `frontend/dist/`，无需 Nginx
+- **systemd**：Raspberry Pi 开机自启，暂不引入 Redis
 
 ### 前端
 - **Vue 3** (Composition API) + **Vite 6** + **TailwindCSS 3** + **Lucide Icons**
@@ -41,7 +42,10 @@ printflow-3d/
 │       └── composables/ # useApi, useOrders, useProducts
 ├── data/app.db
 ├── requirements.txt
-└── nginx.conf
+├── deploy.bat        # Windows 一键部署到 Pi
+├── deploy.sh         # rsync 部署脚本（deploy.bat 调用）
+├── start.sh / stop.sh # Pi 服务启停（SSH）
+└── printflow.service # systemd 服务文件
 ```
 
 ---
@@ -132,7 +136,8 @@ discount = total_amount - actual_amount（砍价金额，不计入成本，独�
 | v1.5.0 | 打印任务管理 | ✅ |
 | v1.6.0 | 买家管理 + 标签 + 统计 | ✅ |
 | v1.7.0 | 销售统计 + 利润报表（从orders实时聚合，无独立sales表）+ 数据导出 | ✅ |
-| v1.8.0 | Nginx + systemd 生产部署 | 🔲 |
+| v1.8.0 | Nginx + systemd 生产部署（WSL2）→ 已迁移至 Raspberry Pi | ✅ |
+| v1.8.1 | 合集价修复 + 订单表单增强 + 买家好评标签 + Pi 部署 | ✅ |
 | v1.9.0 | 商品长图生成（Jinja2 + Playwright 截图） | 🔲 |
 
 ---
@@ -140,7 +145,7 @@ discount = total_amount - actual_amount（砍价金额，不计入成本，独�
 ## 开发铁律
 
 1. **每次只做一个版本**，完成并测试通过后再推进下一版本
-2. 先在 Windows 环境测试，再部署 WSL
+2. 先在 Windows 环境测试，再部署树莓派
 3. 测试通过后 git commit，版本号按实际修改内容自动生成
 4. 优先开发核心差异化功能：粘贴导入订单
 5. 后端：路由层只做分发，业务逻辑全放 services 层

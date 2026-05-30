@@ -1,14 +1,15 @@
 #!/bin/bash
 set -e
+PI="zhaohaosen@192.163.20.150"
 
-echo "=== PrintFlow-3D WSL Stop ==="
+echo "=== PrintFlow-3D Stop (Pi) ==="
 
-echo "[1/2] Stopping backend service..."
-sudo systemctl stop printflow
+echo "[1/2] Stopping backend..."
+ssh "$PI" "sudo systemctl stop printflow"
 echo "  Backend: stopped"
 
 echo "[2/2] Stopping nginx..."
-sudo systemctl stop nginx
+ssh "$PI" "sudo systemctl stop nginx"
 echo "  Nginx: stopped"
 
 echo ""

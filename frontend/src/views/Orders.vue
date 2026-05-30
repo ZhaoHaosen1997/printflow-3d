@@ -12,6 +12,8 @@ const totalOrders = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(30)
 const products = ref([])
+const settings = ref({})
+const actualAuto = ref(true)
 
 const statuses = [
   { value: '', label: '全部状态' },
@@ -58,6 +60,7 @@ const orderSaving = ref(false)
 
 const orderForm = ref({
   order_time: '',
+  xianyu_order_id: '',
   actual_amount: null,
   shipping_fee: null,
   packaging_fee: null,
@@ -79,13 +82,17 @@ async function fetchAll() {
   if (f.product_id) params += `&product_id=${f.product_id}`
   if (f.date_from) params += `&date_from=${f.date_from}`
   if (f.date_to) params += `&date_to=${f.date_to}`
-  const [ordData, prod] = await Promise.all([
+  const [ordData, prod, sett] = await Promise.all([
     get(`/api/orders${params}`),
     get('/api/products'),
+    get('/api/settings'),
   ])
   orders.value = ordData.items
   totalOrders.value = ordData.total
   products.value = prod.filter(p => p.status === 'active')
+  const sm = {}
+  sett.forEach(s => { sm[s.key] = s.value })
+  settings.value = sm
 }
 
 function applyFilters() {
@@ -130,19 +137,23 @@ async function exportCSV() {
 }
 
 function resetForm() {
+  const s = settings.value
+  const isBundle = orderForm.value.items.length > 1
   orderForm.value = {
     order_time: new Date().toISOString().slice(0, 16),
+    xianyu_order_id: '',
     actual_amount: null,
-    shipping_fee: null,
-    packaging_fee: null,
+    shipping_fee: s.shipping_fee != null ? Number(s.shipping_fee) : null,
+    packaging_fee: isBundle ? (s.packaging_fee_bundle != null ? Number(s.packaging_fee_bundle) : null) : (s.packaging_fee != null ? Number(s.packaging_fee) : null),
     service_fee: null,
-    service_fee_rate: null,
+    service_fee_rate: s.service_fee_rate != null ? Number(s.service_fee_rate) * 100 : null,
     charity_fee: null,
     charity_fee_rate: null,
     notes: '',
     buyer_nickname: '',
     items: [],
   }
+  actualAuto.value = true
 }
 
 function openCreate() {
@@ -156,6 +167,7 @@ function editOrder(row) {
   get(`/api/orders/${row.id}`).then(full => {
     orderForm.value = {
       order_time: full.order_time ? full.order_time.slice(0, 16) : '',
+      xianyu_order_id: full.xianyu_order_id || '',
       actual_amount: full.actual_amount,
       shipping_fee: full.shipping_fee,
       packaging_fee: full.packaging_fee,
@@ -198,7 +210,7 @@ async function cancelOrder(row) {
 async function archiveOrder(row) {
   if (!confirm(`确定归档 ${row.order_no}？归档后将从活跃列表隐藏。`)) return
   await put(`/api/orders/${row.id}`, { status: 'archived' })
-  row.status = 'archived'
+  await fetchAll()
 }
 
 function addOrderItem() {
@@ -213,6 +225,21 @@ function addOrderItem() {
 
 function removeOrderItem(idx) {
   orderForm.value.items.splice(idx, 1)
+  recalcItemPrices()
+}
+
+function recalcItemPrices() {
+  const validItems = orderForm.value.items.filter(i => i.product_id)
+  const totalQty = validItems.reduce((sum, i) => sum + (Number(i.quantity) || 1), 0)
+  const useBundle = validItems.length > 1 || totalQty > 1
+  for (const item of orderForm.value.items) {
+    if (!item.product_id) continue
+    const prod = products.value.find(p => p.id === Number(item.product_id))
+    if (prod) {
+      item.unit_price = useBundle ? Number(prod.price_bundle || prod.price_single) : Number(prod.price_single)
+      item.material_cost = Number(prod.material_cost)
+    }
+  }
   recalcTotal()
 }
 
@@ -221,12 +248,10 @@ function onItemProductChange(idx) {
   const prod = products.value.find(p => p.id === Number(item.product_id))
   if (prod) {
     item.product_name = prod.name
-    item.unit_price = Number(prod.price_single)
-    item.material_cost = Number(prod.material_cost)
     if (prod.charity_rate != null && orderForm.value.charity_fee_rate == null) {
       orderForm.value.charity_fee_rate = Number(prod.charity_rate) * 100
     }
-    recalcTotal()
+    recalcItemPrices()
   }
 }
 
@@ -235,8 +260,7 @@ function recalcTotal() {
   for (const item of orderForm.value.items) {
     total += (Number(item.unit_price) || 0) * (Number(item.quantity) || 1)
   }
-  // auto-calc actual = total if not explicitly set (null means untouched)
-  if (orderForm.value.actual_amount == null) {
+  if (actualAuto.value) {
     orderForm.value.actual_amount = Math.round(total * 100) / 100
   }
 }
@@ -249,11 +273,20 @@ const computedTotal = computed(() => {
   return Math.round(t * 100) / 100
 })
 
+const hasCharityProduct = computed(() => {
+  return orderForm.value.items.some(item => {
+    if (!item.product_id) return false
+    const prod = products.value.find(p => p.id === Number(item.product_id))
+    return prod && prod.charity_rate != null
+  })
+})
+
 async function handleSubmit() {
   orderSaving.value = true
   try {
     const payload = {
       source: 'manual',
+      xianyu_order_id: orderForm.value.xianyu_order_id || null,
       buyer_nickname: orderForm.value.buyer_nickname || null,
       order_time: orderForm.value.order_time ? orderForm.value.order_time + ':00' : null,
       total_amount: computedTotal.value,
@@ -405,7 +438,7 @@ onMounted(fetchAll)
       </template>
       <template #cell-source="{ value }">
         <span class="text-xs px-2 py-0.5 rounded bg-dark-input text-gray-400">
-          {{ { paste_import: '粘贴导入', manual: '手动', wechat: '微信', migrated: '旧版导入' }[value] || value }}
+          {{ { paste_import: '粘贴导入', manual: '手动', wechat: '微信', migrated: '旧版导入', image_import: '识图导入' }[value] || value }}
         </span>
       </template>
       <template #cell-order_time="{ value }">
@@ -456,8 +489,8 @@ onMounted(fetchAll)
           </div>
 
           <form @submit.prevent="handleSubmit" class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            <!-- Row 1: Order Time + Buyer -->
-            <div class="grid grid-cols-2 gap-4">
+            <!-- Row 1: Order Time + Buyer + Xianyu ID -->
+            <div class="grid grid-cols-3 gap-4">
               <div>
                 <label class="block text-sm text-gray-400 mb-1">下单时间</label>
                 <input v-model="orderForm.order_time" type="datetime-local" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" />
@@ -465,6 +498,10 @@ onMounted(fetchAll)
               <div>
                 <label class="block text-sm text-gray-400 mb-1">买家昵称</label>
                 <input v-model="orderForm.buyer_nickname" type="text" placeholder="可空" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50 placeholder-gray-600" />
+              </div>
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">闲鱼订单号</label>
+                <input v-model="orderForm.xianyu_order_id" type="text" placeholder="可空" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50 placeholder-gray-600" />
               </div>
             </div>
 
@@ -491,7 +528,7 @@ onMounted(fetchAll)
                     </div>
                     <div>
                       <label class="text-xs text-gray-500">数量</label>
-                      <input v-model.number="item.quantity" type="number" min="1" class="w-full px-2 py-1.5 bg-dark-card border border-border-inner rounded text-sm text-gray-200 focus:outline-none focus:border-gold/50" @change="recalcTotal" />
+                      <input v-model.number="item.quantity" type="number" min="1" class="w-full px-2 py-1.5 bg-dark-card border border-border-inner rounded text-sm text-gray-200 focus:outline-none focus:border-gold/50" @change="recalcItemPrices" />
                     </div>
                     <div>
                       <label class="text-xs text-gray-500">单价</label>
@@ -521,7 +558,7 @@ onMounted(fetchAll)
               </div>
               <div>
                 <label class="block text-sm text-gray-400 mb-1">实付金额 <span class="text-red-400">*</span></label>
-                <input v-model.number="orderForm.actual_amount" type="number" step="0.01" min="0" required class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" />
+                <input v-model.number="orderForm.actual_amount" type="number" step="0.01" min="0" required class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" @input="actualAuto = false" />
               </div>
             </div>
 
@@ -543,13 +580,13 @@ onMounted(fetchAll)
                 <label class="block text-sm text-gray-400 mb-1">费率 %</label>
                 <input v-model.number="orderForm.service_fee_rate" type="number" step="0.01" min="0" placeholder="1.6" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50 placeholder-gray-600" />
               </div>
-              <div>
+              <div v-if="hasCharityProduct">
                 <label class="block text-sm text-gray-400 mb-1">公益支出</label>
                 <input v-model.number="orderForm.charity_fee" type="number" step="0.01" min="0" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" />
               </div>
-              <div>
+              <div v-if="hasCharityProduct">
                 <label class="block text-sm text-gray-400 mb-1">公益费率 %</label>
-                <input v-model.number="orderForm.charity_fee_rate" type="number" step="0.01" min="0" placeholder="1" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50 placeholder-gray-600" />
+                <input v-model.number="orderForm.charity_fee_rate" type="number" step="0.01" min="0" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50 placeholder-gray-600" />
               </div>
             </div>
 

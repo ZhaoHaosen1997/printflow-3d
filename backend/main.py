@@ -2,6 +2,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from backend.database import init_db
 from backend.routers.colors import router as colors_router
 from backend.routers.filaments import router as filaments_router
@@ -26,7 +27,7 @@ ALLOWED_ORIGINS = os.getenv(
     "http://localhost:5173,http://localhost:18848"
 ).split(",")
 
-app = FastAPI(title="PrintFlow-3D", version="1.8.0")
+app = FastAPI(title="PrintFlow-3D", version="1.8.1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -55,9 +56,20 @@ app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 @app.on_event("startup")
 def on_startup():
     init_db()
-    log_business("服务启动", "PrintFlow-3D", version="1.8.0")
+    log_business("服务启动", "PrintFlow-3D", version="1.8.1")
 
 
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+# 生产模式：若前端已构建，捕获所有未匹配路径 → 返回 SPA
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend", "dist")
+if os.path.exists(FRONTEND_DIR) and os.listdir(FRONTEND_DIR):
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        file_path = os.path.join(FRONTEND_DIR, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
