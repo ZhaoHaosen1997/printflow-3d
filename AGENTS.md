@@ -186,6 +186,8 @@ discount = total_amount - actual_amount（砍价金额，不计入成本，独�
     - `frontend/src/components/Sidebar.vue` 中版本号显示文本
     - `backend/main.py` 中 `FastAPI(title="PrintFlow-3D", version="...")`
 12. **提交规范**：一个版本一个提交，小型修复用 `git commit --amend` 合并到上一次提交，避免提交记录碎片化
+13. **amend 后推送**：amend 会改写历史，推送时需 `git push forgejo master --force`；Pi 上需 `git fetch origin && git reset --hard origin/master` 同步（`data/` 在 .gitignore 中不受影响）
+14. **log_business 禁用 `category` 关键字**：`_log()` 内部参数名是 `category`，kwargs 里传 `category=xxx` 会冲突报错。改用 `product_category`/`poster_category` 等别名
 
 ---
 

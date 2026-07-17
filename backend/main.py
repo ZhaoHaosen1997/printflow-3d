@@ -28,7 +28,7 @@ ALLOWED_ORIGINS = os.getenv(
     "http://localhost:5173,http://localhost:18848"
 ).split(",")
 
-app = FastAPI(title="PrintFlow-3D", version="1.9.0")
+app = FastAPI(title="PrintFlow-3D", version="1.9.1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -58,7 +58,7 @@ app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 @app.on_event("startup")
 def on_startup():
     init_db()
-    log_business("服务启动", "PrintFlow-3D", version="1.9.0")
+    log_business("服务启动", "PrintFlow-3D", version="1.9.1")
 
 
 @app.get("/api/health")

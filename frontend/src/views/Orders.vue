@@ -476,7 +476,7 @@ onMounted(fetchAll)
       <div
         v-if="modalVisible"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-        @click.self="modalVisible = false"
+        @mousedown.self="modalVisible = false"
       >
         <div class="bg-dark-card border border-border-main rounded-lg shadow-2xl w-full max-w-3xl mx-4 max-h-[90vh] flex flex-col">
           <div class="flex items-center justify-between px-6 py-4 border-b border-border-inner">
@@ -532,13 +532,13 @@ onMounted(fetchAll)
                     </div>
                     <div>
                       <label class="text-xs text-gray-500">单价</label>
-                      <div class="w-full px-2 py-1.5 bg-dark-card/50 border border-border-inner rounded text-sm text-gray-400">
+                      <div class="w-full px-2 py-1.5 bg-dark-input/30 border border-border-inner/50 rounded text-sm text-gray-500 cursor-default">
                         ¥{{ Number(item.unit_price).toFixed(2) }}
                       </div>
                     </div>
                     <div>
                       <label class="text-xs text-gray-500">材料成本</label>
-                      <div class="w-full px-2 py-1.5 bg-dark-card/50 border border-border-inner rounded text-sm text-gray-400">
+                      <div class="w-full px-2 py-1.5 bg-dark-input/30 border border-border-inner/50 rounded text-sm text-gray-500 cursor-default">
                         ¥{{ Number(item.material_cost).toFixed(2) }}
                       </div>
                     </div>
@@ -552,7 +552,7 @@ onMounted(fetchAll)
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm text-gray-400 mb-1">原价总额（自动计算）</label>
-                <div class="w-full px-3 py-2 bg-dark-input/50 border border-border-inner rounded-md text-gray-400 text-sm">
+                <div class="w-full px-3 py-2 bg-dark-input/30 border border-border-inner/50 rounded-md text-gray-500 text-sm cursor-default">
                   ¥{{ computedTotal.toFixed(2) }}
                 </div>
               </div>

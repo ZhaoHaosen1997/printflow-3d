@@ -1,5 +1,7 @@
+import os
+import uuid
 from decimal import Decimal
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session, selectinload
 from backend.database import get_db
 from backend.models import Product, PrintRecipe, PrintRecipeFilament, Inventory
@@ -42,21 +44,25 @@ def create_product(data: ProductCreate, db: Session = Depends(get_db)):
         existing = db.query(Product).filter(Product.xianyu_item_id == data.xianyu_item_id).first()
         if existing:
             raise HTTPException(400, f"闲鱼商品ID '{data.xianyu_item_id}' 已存在")
+    elif data.xianyu_item_id == '':
+        data.xianyu_item_id = None
 
     product_data = data.model_dump(exclude={"default_recipe"})
     product = Product(**product_data)
     db.add(product)
     db.flush()
 
-    # Auto-create inventory record
-    db.add(Inventory(product_id=product.id, quantity=0, warning_threshold=5))
+    # Auto-create inventory record (skip if already exists)
+    existing_inv = db.query(Inventory).filter(Inventory.product_id == product.id).first()
+    if not existing_inv:
+        db.add(Inventory(product_id=product.id, quantity=0, warning_threshold=5))
 
     if data.default_recipe:
         create_recipe(db, product.id, data.default_recipe)
 
     db.commit()
     db.refresh(product)
-    log_business("商品创建", product.name, category=product.category)
+    log_business("商品创建", product.name, product_category=product.category)
     return product
 
 
@@ -81,6 +87,8 @@ def update_product(product_id: int, data: ProductUpdate, db: Session = Depends(g
         raise HTTPException(404, "商品不存在")
 
     update_data = data.model_dump(exclude_unset=True)
+    if update_data.get('xianyu_item_id') == '':
+        update_data['xianyu_item_id'] = None
     for key, value in update_data.items():
         setattr(product, key, value)
 
@@ -98,6 +106,33 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
     db.commit()
     log_business("商品归档", product.name)
     return MessageResponse(message=f"商品 '{product.name}' 已归档")
+
+
+@router.post("/products/upload-image")
+async def upload_product_image(file: UploadFile = File(...)):
+    allowed = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+    if file.content_type not in allowed:
+        raise HTTPException(400, f"不支持的图片格式: {file.content_type}")
+
+    ext_map = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif"}
+    ext = ext_map.get(file.content_type, ".jpg")
+
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    IMAGES_DIR = os.path.join(BASE_DIR, "data", "images")
+    os.makedirs(IMAGES_DIR, exist_ok=True)
+
+    filename = f"{uuid.uuid4().hex[:12]}{ext}"
+    filepath = os.path.join(IMAGES_DIR, filename)
+
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(400, "图片大小不能超过 10MB")
+
+    with open(filepath, "wb") as f:
+        f.write(content)
+
+    log_business("上传商品图片", filename=filename)
+    return {"filename": filename}
 
 
 # ============ Recipe sub-resources ============

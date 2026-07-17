@@ -115,7 +115,7 @@ def _build_product_data(product: Product, db: Session, show_price: bool = True) 
         "contents": contents,
     }
     if show_price:
-        price = product.price_single
+        price = product.price_bundle if product.price_bundle and product.price_bundle > 0 else product.price_single
         if isinstance(price, Decimal):
             price = float(price)
         data["price"] = price
@@ -157,8 +157,9 @@ def get_bundle_poster_data(db: Session, product_id: int) -> dict:
         sub = db.query(Product).filter(Product.id == item_id, Product.status == "active").first()
         if sub:
             sub_products.append(_build_product_data(sub, db, show_price=False))
-            if sub.price_single:
-                unit_total += sub.price_single
+            price = sub.price_bundle if sub.price_bundle and sub.price_bundle > 0 else sub.price_single
+            if price:
+                unit_total += price
 
     bundle_price = bundle.price_single or Decimal("0")
     savings = unit_total - bundle_price

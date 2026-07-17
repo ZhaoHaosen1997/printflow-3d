@@ -222,7 +222,7 @@ onMounted(fetchBuyers)
       <div
         v-if="detailVisible"
         class="fixed inset-0 z-50 flex justify-end"
-        @click.self="detailVisible = false"
+        @mousedown.self="detailVisible = false"
       >
         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
         <div class="relative w-full max-w-lg bg-dark-card border-l border-border-main shadow-2xl overflow-y-auto">
@@ -328,7 +328,7 @@ onMounted(fetchBuyers)
       <div
         v-if="editModalVisible"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-        @click.self="editModalVisible = false"
+        @mousedown.self="editModalVisible = false"
       >
         <div class="bg-dark-card border border-border-main rounded-lg shadow-2xl w-full max-w-md mx-4">
           <div class="flex items-center justify-between px-6 py-4 border-b border-border-inner">

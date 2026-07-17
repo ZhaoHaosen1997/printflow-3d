@@ -233,7 +233,10 @@ def _extract_province(text: str) -> str | None:
 
 def match_products(db: Session, orders: list[dict]) -> list[dict]:
     """Fuzzy match product names and resolve bundle items."""
-    products = db.query(Product).filter(Product.status == "active").all()
+    products = db.query(Product).filter(
+        Product.status == "active",
+        Product.price_single > 0,
+    ).all()
     results = []
 
     for order in orders:

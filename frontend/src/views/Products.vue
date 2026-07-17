@@ -1,9 +1,11 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import { Plus, X, Package, Star } from '@lucide/vue'
+import { ref, onMounted, computed, nextTick } from 'vue'
+import { Plus, X, Package, Star, Upload, Crop } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
 import DataTable from '../components/DataTable.vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import Cropper from 'cropperjs'
+import 'cropperjs/dist/cropper.css'
 
 const { loading, get, post, put, del } = useApi()
 
@@ -32,6 +34,7 @@ const columns = [
   { key: 'name', label: '商品名称', sortable: true },
   { key: 'category', label: '分类' },
   { key: 'price_single', label: '单品售价' },
+  { key: 'price_bundle', label: '合集价' },
   { key: 'material_cost', label: '材料成本' },
 ]
 
@@ -60,6 +63,13 @@ const recipeForm = ref({
   is_default: false,
   filaments: [],
 })
+
+const imageUploading = ref(false)
+const cropModalVisible = ref(false)
+const cropSrc = ref('')
+const cropFilename = ref('')
+const cropCropper = ref(null)
+const cropImageEl = ref(null)
 
 const productForm = ref({
   name: '',
@@ -215,6 +225,7 @@ async function handleProductSubmit() {
         ? productForm.value.search_keywords.split(/[,，]/).map(s => s.trim()).filter(Boolean)
         : null,
     }
+    if (payload.xianyu_item_id === '') payload.xianyu_item_id = null
     if (editingProduct.value) {
       const updated = await put(`/api/products/${editingProduct.value.id}`, payload)
       const idx = products.value.findIndex(p => p.id === editingProduct.value.id)
@@ -229,6 +240,66 @@ async function handleProductSubmit() {
   } finally {
     productSaving.value = false
   }
+}
+
+async function handleImageUpload(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    cropSrc.value = e.target.result
+    cropFilename.value = file.name
+    cropModalVisible.value = true
+    nextTick(() => {
+      if (cropImageEl.value) {
+        if (cropCropper.value) cropCropper.value.destroy()
+        cropCropper.value = new Cropper(cropImageEl.value, {
+          aspectRatio: 1,
+          viewMode: 1,
+          dragMode: 'move',
+          autoCropArea: 0.9,
+          responsive: true,
+        })
+      }
+    })
+  }
+  reader.readAsDataURL(file)
+  event.target.value = ''
+}
+
+async function confirmCrop() {
+  if (!cropCropper.value) return
+  const canvas = cropCropper.value.getCroppedCanvas({ width: 600, height: 600, fillColor: '#fff' })
+  if (!canvas) return
+  canvas.toBlob(async (blob) => {
+    if (!blob) return
+    imageUploading.value = true
+    try {
+      const formData = new FormData()
+      formData.append('file', blob, cropFilename.value)
+      const res = await fetch('/api/products/upload-image', { method: 'POST', body: formData })
+      if (!res.ok) throw new Error('Upload failed')
+      const data = await res.json()
+      productForm.value.image = data.filename
+      cropModalVisible.value = false
+    } catch (e) {
+      alert('上传失败: ' + e.message)
+    } finally {
+      imageUploading.value = false
+    }
+  }, 'image/jpeg', 0.92)
+}
+
+function cancelCrop() {
+  cropModalVisible.value = false
+  if (cropCropper.value) {
+    cropCropper.value.destroy()
+    cropCropper.value = null
+  }
+}
+
+function removeImage() {
+  productForm.value.image = ''
 }
 
 // --- Recipe sub-view ---
@@ -408,8 +479,13 @@ onMounted(fetchAll)
       <template #cell-category="{ value }">
         <StatusBadge :status="value" />
       </template>
-      <template #cell-price_single="{ value }">
-        <span class="text-gold-price font-medium">¥{{ Number(value).toFixed(2) }}</span>
+      <template #cell-price_single="{ value, row }">
+        <span v-if="Number(value) === 0" class="text-xs px-1.5 py-0.5 rounded bg-gray-500/15 text-gray-400 border border-gray-500/30">不单卖</span>
+        <span v-else class="text-gold-price font-medium">¥{{ Number(value).toFixed(2) }}</span>
+      </template>
+      <template #cell-price_bundle="{ value, row }">
+        <span v-if="row.category === 'bundle'" class="text-gray-500 text-sm">—</span>
+        <span v-else-if="Number(value) > 0" class="text-gray-400 text-sm">¥{{ Number(value).toFixed(2) }}</span>
       </template>
       <template #cell-material_cost="{ value }">
         <span class="text-gray-500 text-sm">¥{{ Number(value).toFixed(2) }}</span>
@@ -421,7 +497,7 @@ onMounted(fetchAll)
       <div
         v-if="productModalVisible"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-        @click.self="productModalVisible = false"
+        @mousedown.self="productModalVisible = false"
       >
         <div class="bg-dark-card border border-border-main rounded-lg shadow-2xl w-full max-w-xl mx-4 max-h-[85vh] flex flex-col">
           <div class="flex items-center justify-between px-6 py-4 border-b border-border-inner">
@@ -454,6 +530,7 @@ onMounted(fetchAll)
               <div>
                 <label class="block text-sm text-gray-400 mb-1">单品售价 <span class="text-red-400">*</span></label>
                 <input v-model.number="productForm.price_single" type="number" step="0.01" min="0" required class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" />
+                <p class="text-xs text-gray-600 mt-1">设为 0 表示不单卖（仅作为合集子商品）</p>
               </div>
               <div v-if="productForm.category !== 'bundle'">
                 <label class="block text-sm text-gray-400 mb-1">合集优惠价</label>
@@ -477,8 +554,24 @@ onMounted(fetchAll)
             </div>
 
             <div>
-              <label class="block text-sm text-gray-400 mb-1">图片文件名</label>
-              <input v-model="productForm.image" type="text" placeholder="如 product.jpg" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50 placeholder-gray-600" />
+              <label class="block text-sm text-gray-400 mb-1">商品图片</label>
+              <div v-if="productForm.image" class="relative group">
+                <img :src="'/images/' + productForm.image" class="w-24 h-24 rounded-md object-cover border border-border-inner" @error="$event.target.style.display='none'" />
+                <div class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md opacity-0 group-hover:opacity-100 transition-opacity gap-2">
+                  <label class="cursor-pointer text-gray-200 hover:text-gold text-xs">
+                    <Upload class="w-4 h-4 mx-auto mb-0.5" />
+                    <input type="file" accept="image/*" class="hidden" @change="handleImageUpload" />
+                  </label>
+                  <button type="button" class="text-gray-200 hover:text-red-400 text-xs" @click="removeImage"><X class="w-4 h-4" /></button>
+                </div>
+              </div>
+              <div v-else class="w-24 h-24 rounded-md border-2 border-dashed border-border-inner flex items-center justify-center cursor-pointer hover:border-gold/50 transition-colors" @click="$refs.imageInput?.click()">
+                <div class="text-center">
+                  <Upload class="w-5 h-5 text-gray-500 mx-auto mb-1" />
+                  <span class="text-xs text-gray-500">上传</span>
+                </div>
+                <input ref="imageInput" type="file" accept="image/*" class="hidden" @change="handleImageUpload" />
+              </div>
             </div>
 
             <div>
@@ -569,9 +662,9 @@ onMounted(fetchAll)
                     <span v-for="(sw, i) in (allColors.find(c => c.color_id === selectedFixedColorId)?.swatches || [])" :key="i" class="w-6 h-6 rounded ring-1 ring-border-inner/40" :style="{ backgroundColor: sw }"></span>
                   </template>
                   <template v-if="colorMode === 'optional'">
-                    <template v-for="cid in selectedOptionalColorIds">
-                      <span v-for="(sw, si) in (allColors.find(c => c.color_id === cid)?.swatches || [])" :key="cid+'-'+si" class="w-6 h-6 rounded ring-1 ring-border-inner/40" :style="{ backgroundColor: sw }"></span>
-                    </template>
+                    <div v-for="cid in selectedOptionalColorIds" :key="cid" class="flex gap-0.5 p-1 bg-dark-card rounded ring-1 ring-border-inner/30">
+                      <span v-for="(sw, si) in (allColors.find(c => c.color_id === cid)?.swatches || [])" :key="si" class="w-5 h-5 rounded-sm ring-1 ring-border-inner/40" :style="{ backgroundColor: sw }"></span>
+                    </div>
                   </template>
                 </div>
               </div>
@@ -593,7 +686,7 @@ onMounted(fetchAll)
       <div
         v-if="recipeModalVisible"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-        @click.self="recipeModalVisible = false"
+        @mousedown.self="recipeModalVisible = false"
       >
         <div class="bg-dark-card border border-border-main rounded-lg shadow-2xl w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col">
           <div class="flex items-center justify-between px-6 py-4 border-b border-border-inner">
@@ -670,7 +763,7 @@ onMounted(fetchAll)
       <div
         v-if="recipeFormVisible"
         class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm"
-        @click.self="recipeFormVisible = false"
+        @mousedown.self="recipeFormVisible = false"
       >
         <div class="bg-dark-card border border-border-main rounded-lg shadow-2xl w-full max-w-lg mx-4 max-h-[85vh] flex flex-col">
           <div class="flex items-center justify-between px-6 py-4 border-b border-border-inner">
@@ -799,6 +892,42 @@ onMounted(fetchAll)
               @click="handleRecipeSubmit"
             >
               {{ recipeSaving ? '保存中...' : '保存' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Crop Modal -->
+    <Teleport to="body">
+      <div
+        v-if="cropModalVisible"
+        class="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+        @mousedown.self="cancelCrop"
+      >
+        <div class="bg-dark-card border border-border-main rounded-lg shadow-2xl w-full max-w-lg mx-4">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-border-inner">
+            <h3 class="text-lg font-serif text-gold-title">裁剪图片</h3>
+            <button class="text-gray-500 hover:text-gray-300" @click="cancelCrop"><X class="w-5 h-5" /></button>
+          </div>
+          <div class="p-4">
+            <div class="max-h-[60vh] overflow-hidden bg-dark-input rounded-md">
+              <img ref="cropImageEl" :src="cropSrc" class="block w-full" />
+            </div>
+          </div>
+          <div class="flex justify-end gap-3 px-6 py-4 border-t border-border-inner">
+            <button
+              class="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 hover:bg-dark-input rounded-md transition-colors"
+              @click="cancelCrop"
+            >
+              取消
+            </button>
+            <button
+              class="px-4 py-2 text-sm bg-gold/20 text-gold border border-gold/40 rounded-md hover:bg-gold/30 transition-colors disabled:opacity-50"
+              :disabled="imageUploading"
+              @click="confirmCrop"
+            >
+              <span class="flex items-center gap-1.5"><Crop class="w-3.5 h-3.5" />{{ imageUploading ? '上传中...' : '确认裁剪' }}</span>
             </button>
           </div>
         </div>

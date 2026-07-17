@@ -159,7 +159,7 @@ onMounted(fetchInventories)
       <div
         v-if="modalVisible"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-        @click.self="modalVisible = false"
+        @mousedown.self="modalVisible = false"
       >
         <div class="bg-dark-card border border-border-main rounded-lg shadow-2xl w-full max-w-md mx-4">
           <div class="flex items-center justify-between px-6 py-4 border-b border-border-inner">

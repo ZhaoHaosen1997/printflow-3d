@@ -238,7 +238,7 @@ onMounted(fetchData)
       <div
         v-if="confirmVisible"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-        @click.self="confirmVisible = false"
+        @mousedown.self="confirmVisible = false"
       >
         <div class="bg-dark-card border border-border-main rounded-lg shadow-2xl w-full max-w-md mx-4">
           <div class="flex items-center gap-3 px-6 py-4 border-b border-red-400/30">
