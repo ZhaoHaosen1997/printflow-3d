@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header decorated-border">
+  <h1>{{ title }}</h1>
+  <div class="notices">
+    {% for notice in notices %}
+    <p>{{ notice }}</p>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="product-grid">
+  {% for product in products %}
+  <div class="product-card decorated-border">
+    <div class="product-title">
+      <span class="name">{{ product.name }}</span>
+      <span class="price">¥{{ product.price }}</span>
+    </div>
+
+    {% if product.image_b64 %}
+    <div class="product-image">
+      <img src="{{ product.image_b64 }}" alt="{{ product.name }}">
+    </div>
+    {% else %}
+    <div class="product-image">
+      <div class="placeholder">📷</div>
+    </div>
+    {% endif %}
+
+    {% if product.colors %}
+    {% for color_group in product.colors %}
+    <div class="color-section">
+      <div class="label">{{ color_group.label }}</div>
+      <div class="color-row">
+        {% for item in color_group.color_items %}
+        <div class="color-item">
+          <div class="swatches">
+            {% for swatch in item.swatches %}
+            <div class="swatch" style="background:{{ swatch }}"></div>
+            {% endfor %}
+          </div>
+          <span class="name">{{ item.name }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% if product.contents %}
+    <div class="contents">
+      <h4>内容物：</h4>
+      <ul>
+        {% for item in product.contents %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<div class="page-footer decorated-border">
+  {% for line in footer_lines %}
+  <p>{{ line }}</p>
+  {% endfor %}
+</div>
+{% endblock %}

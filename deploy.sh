@@ -2,7 +2,7 @@
 set -e
 
 SRC="/mnt/c/mycode/printflow-3d"
-PI="zhaohaosen@192.163.20.150"
+PI="zhaohaosen@192.168.10.10"
 DST="/home/zhaohaosen/applications/printflow-3d"
 VENV="/home/zhaohaosen/.venvs/printflow"
 SERVICE_FILE="/etc/systemd/system/printflow.service"
@@ -80,5 +80,5 @@ SERVICE
 
 echo ""
 echo "=== Deploy complete ==="
-echo "  URL: http://192.163.20.150:8848"
+echo "  URL: http://192.168.10.10:8848"
 echo "  Status: ssh $PI 'sudo systemctl status printflow'"

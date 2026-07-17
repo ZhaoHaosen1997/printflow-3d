@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ title }}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Noto+Serif+SC:wght@400;600&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  max-width: {{ width }}px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Noto Serif SC', 'SimSun', Georgia, serif;
+  line-height: 1.8;
+  letter-spacing: 0.02em;
+  min-height: 100vh;
+}
+
+h1, h2, h3 {
+  font-family: 'Cinzel', 'Noto Serif SC', serif;
+  letter-spacing: 0.05em;
+}
+
+{% if theme == 'parchment' %}
+  {% include 'theme-parchment.html' %}
+{% elif theme == 'dark-gold' %}
+  {% include 'theme-dark-gold.html' %}
+{% endif %}
+
+.page-header {
+  padding: 20px 16px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.page-header h1 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.page-header .notices {
+  font-size: 13px;
+}
+
+.page-header .notices p {
+  margin: 4px 0;
+}
+
+.page-header::before,
+.page-header::after {
+  content: "✧";
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+.page-header::before { margin-right: 8px; }
+.page-header::after { margin-left: 8px; }
+
+.product-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.product-card {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.product-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  gap: 8px;
+}
+
+.product-title .name {
+  font-size: 14px;
+  font-weight: 600;
+  flex: 1;
+  word-break: break-word;
+}
+
+.product-title .price {
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.item-name {
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  padding-bottom: 8px;
+}
+
+.product-image {
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.product-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.product-image .placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  opacity: 0.3;
+}
+
+.color-section {
+  font-size: 12px;
+}
+
+.color-section .label {
+  margin-bottom: 6px;
+}
+
+.color-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.color-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.color-item .swatches {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.color-item .name {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.contents {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.contents h4 {
+  font-size: 12px;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.contents ul {
+  list-style: none;
+  padding: 0;
+}
+
+.contents li {
+  padding-left: 12px;
+  position: relative;
+}
+
+.contents li::before {
+  content: "◆";
+  position: absolute;
+  left: 0;
+  font-size: 8px;
+  top: 4px;
+}
+
+.page-footer {
+  padding: 16px;
+  margin-top: 20px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.page-footer p {
+  margin: 4px 0;
+}
+
+.total-price {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 12px 0;
+}
+
+.price-summary {
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.price-summary .highlight {
+  font-weight: 700;
+}
+</style>
+</head>
+<body>
+{% block content %}{% endblock %}
+</body>
+</html>

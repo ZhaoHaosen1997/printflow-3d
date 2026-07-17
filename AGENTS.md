@@ -5,8 +5,32 @@
 - **项目名**：printflow-3d（3D打印商品管理工具 v2.0）
 - **定位**：个人闲鱼3D打印副业管理系统，覆盖商品/耗材/订单/买家/库存/打印任务/销售统计全链路
 - **运行环境**：Raspberry Pi（Debian aarch64，内网部署）
-- **访问方式**：浏览器 → `http://<pi-lan-ip>:8848`
-- **部署方式**：双击 `deploy.bat` → rsync 推送代码至 Pi → 自动重启服务
+- **访问方式**：浏览器 → `http://192.168.10.10:8848`
+- **Git 仓库**：
+  - forgejo（私服）：`http://192.168.10.10:3000/zhaohaosen/printflow-3d.git`
+  - origin（GitHub）：`https://github.com/ZhaoHaosen1997/printflow-3d.git`
+
+---
+
+## 部署方式
+
+### 树莓派部署（Git 拉取模式）
+
+Pi 上项目目录已初始化为 git 仓库，remote `origin` 指向本地 forgejo 私服。
+
+**部署流程**：
+1. 本地开发测试通过 → `git push forgejo master`
+2. SSH 到 Pi：`git pull origin master`
+3. 如有后端依赖变更：`~/.venvs/printflow/bin/pip install -r requirements.txt`
+4. 如有前端变更：`cd frontend && npm run build`
+5. 重启服务：`sudo systemctl restart printflow`
+
+**首次部署新依赖**（如 playwright）需额外执行：
+```bash
+~/.venvs/printflow/bin/playwright install chromium
+```
+
+**数据保护**：`data/` 目录（app.db、images、logs）在 `.gitignore` 中，git 操作不会覆盖。
 
 ---
 
@@ -15,6 +39,7 @@
 ### 后端
 - **FastAPI** (Python 3.11+)，SQLAlchemy ORM，Pydantic 校验
 - **SQLite**（单用户，`data/app.db`），预留一键切换 PostgreSQL
+- **Jinja2** + **Playwright**：商品长图生成（HTML渲染→无头截图→PNG）
 - **前端直挂**：FastAPI 内置 `FileResponse` 挂载 `frontend/dist/`，无需 Nginx
 - **systemd**：Raspberry Pi 开机自启，暂不引入 Redis
 
@@ -32,18 +57,21 @@ printflow-3d/
 ├── backend/
 │   ├── main.py / models.py / schemas.py / database.py
 │   ├── routers/   # products, orders, inventories, buyers,
-│   │              # print_tasks, filaments, settings, parser
-│   └── services/  # parser_service.py, analytics.py
+│   │              # print_tasks, filaments, settings, parser, posters
+│   ├── services/  # parser_service.py, poster_service.py, ...
+│   └── templates/posters/  # Jinja2 长图模板
+│       ├── base.html / category-poster.html / bundle-poster.html
+│       ├── theme-parchment.html / theme-dark-gold.html
 ├── frontend/
 │   └── src/
 │       ├── views/      # Orders, Products, Filaments, Inventories,
-│       │               # PrintTasks, Buyers, Sales, PasteImport, Settings
+│       │               # PrintTasks, Buyers, Sales, PasteImport, Settings,
+│       │               # PosterGenerator
 │       ├── components/ # 公共组件
 │       └── composables/ # useApi, useOrders, useProducts
 ├── data/app.db
 ├── requirements.txt
-├── deploy.bat        # Windows 一键部署到 Pi
-├── deploy.sh         # rsync 部署脚本（deploy.bat 调用）
+├── deploy.sh         # rsync 部署脚本（旧，备用）
 ├── start.sh / stop.sh # Pi 服务启停（SSH）
 └── printflow.service # systemd 服务文件
 ```
@@ -138,7 +166,7 @@ discount = total_amount - actual_amount（砍价金额，不计入成本，独�
 | v1.7.0 | 销售统计 + 利润报表（从orders实时聚合，无独立sales表）+ 数据导出 | ✅ |
 | v1.8.0 | Nginx + systemd 生产部署（WSL2）→ 已迁移至 Raspberry Pi | ✅ |
 | v1.8.1 | 合集价修复 + 订单表单增强 + 买家好评标签 + Pi 部署 | ✅ |
-| v1.9.0 | 商品长图生成（Jinja2 + Playwright 截图） | 🔲 |
+| v1.9.0 | 商品长图生成（Jinja2 + Playwright 截图，羊皮纸/暗金双主题） | ✅ |
 
 ---
 
@@ -157,6 +185,7 @@ discount = total_amount - actual_amount（砍价金额，不计入成本，独�
 11. **提交时更新版本号**：每次 git commit 并推送前，须同步更新两处版本展示：
     - `frontend/src/components/Sidebar.vue` 中版本号显示文本
     - `backend/main.py` 中 `FastAPI(title="PrintFlow-3D", version="...")`
+12. **提交规范**：一个版本一个提交，小型修复用 `git commit --amend` 合并到上一次提交，避免提交记录碎片化
 
 ---
 
@@ -177,12 +206,12 @@ discount = total_amount - actual_amount（砍价金额，不计入成本，独�
 ### DataTable 操作列
 - 不加固定宽度，`whitespace-nowrap` 让按钮横向排列
 
-### 推送 GitHub
-- 远程仓库：https://github.com/ZhaoHaosen1997/printflow-3d
+### 推送远程仓库
 当用户说"帮我推送远程仓库 / 推送 github"时：
 1. `git add` 所有变更文件（不含 .env、node_modules、__pycache__、.venv）
 2. `git commit`，提交信息概括本轮改动要点（中文，一行）
-3. `git push origin master`
+3. `git push forgejo master`（私服优先）
+4. `git push origin master`（GitHub，网络通时）
 
 ### 操作按钮五种风格（按语义选用）
 | 风格 | class | 适用场景 |

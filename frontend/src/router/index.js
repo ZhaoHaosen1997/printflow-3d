@@ -14,6 +14,7 @@ const routes = [
   { path: '/print-tasks', name: 'PrintTasks', component: () => import('../views/PrintTasks.vue') },
   { path: '/buyers', name: 'Buyers', component: () => import('../views/Buyers.vue') },
   { path: '/archived', name: 'ArchivedData', component: () => import('../views/ArchivedData.vue') },
+  { path: '/poster-generator', name: 'PosterGenerator', component: () => import('../views/PosterGenerator.vue') },
   { path: '/:pathMatch(.*)*', redirect: '/sales' },
 ]
 

@@ -15,6 +15,7 @@ from backend.routers.print_tasks import router as print_tasks_router
 from backend.routers.buyers import router as buyers_router
 from backend.routers.sales import router as sales_router
 from backend.routers.admin import router as admin_router
+from backend.routers.posters import router as posters_router
 from backend.middleware.logging_middleware import LoggingMiddleware
 from backend.services.logger_service import log_business
 
@@ -27,7 +28,7 @@ ALLOWED_ORIGINS = os.getenv(
     "http://localhost:5173,http://localhost:18848"
 ).split(",")
 
-app = FastAPI(title="PrintFlow-3D", version="1.8.1")
+app = FastAPI(title="PrintFlow-3D", version="1.9.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -49,6 +50,7 @@ app.include_router(print_tasks_router, prefix="/api")
 app.include_router(buyers_router, prefix="/api")
 app.include_router(sales_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
+app.include_router(posters_router, prefix="/api")
 
 app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
@@ -56,7 +58,7 @@ app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 @app.on_event("startup")
 def on_startup():
     init_db()
-    log_business("服务启动", "PrintFlow-3D", version="1.8.1")
+    log_business("服务启动", "PrintFlow-3D", version="1.9.0")
 
 
 @app.get("/api/health")
