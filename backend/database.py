@@ -160,6 +160,9 @@ def init_db():
     added = _add_column_safe("products", "search_keywords", "JSON")
     if added:
         log_db("迁移", "products.search_keywords 列已添加")
+    added = _add_column_safe("products", "sort_order", "INTEGER DEFAULT 0")
+    if added:
+        log_db("迁移", "products.sort_order 列已添加")
     db = SessionLocal()
     try:
         seed_colors(db)

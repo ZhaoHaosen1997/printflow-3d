@@ -9,7 +9,7 @@ from backend.schemas import (
     ProductCreate, ProductUpdate, ProductResponse,
     PrintRecipeCreate, PrintRecipeUpdate, PrintRecipeResponse,
     PrintRecipeFilamentCreate, PrintRecipeFilamentResponse,
-    MessageResponse,
+    MessageResponse, SortOrderRequest,
 )
 from backend.services.product_service import (
     calculate_recipe_cost, create_recipe, update_recipe, delete_recipe,
@@ -35,7 +35,18 @@ def list_products(
         q = q.filter(Product.category == category)
     if status != "all":
         q = q.filter(Product.status == status)
-    return q.order_by(Product.category, Product.name).all()
+    return q.order_by(Product.sort_order, Product.id).all()
+
+
+@router.put("/products/sort-order", response_model=MessageResponse)
+def update_sort_order(data: SortOrderRequest, db: Session = Depends(get_db)):
+    for item in data.items:
+        product = db.query(Product).filter(Product.id == item.id).first()
+        if product:
+            product.sort_order = item.sort_order
+    db.commit()
+    log_business("更新商品排序", count=len(data.items))
+    return MessageResponse(message="排序已更新")
 
 
 @router.post("/products", response_model=ProductResponse, status_code=201)

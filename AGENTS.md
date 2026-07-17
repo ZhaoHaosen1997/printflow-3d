@@ -167,6 +167,8 @@ discount = total_amount - actual_amount（砍价金额，不计入成本，独�
 | v1.8.0 | Nginx + systemd 生产部署（WSL2）→ 已迁移至 Raspberry Pi | ✅ |
 | v1.8.1 | 合集价修复 + 订单表单增强 + 买家好评标签 + Pi 部署 | ✅ |
 | v1.9.0 | 商品长图生成（Jinja2 + Playwright 截图，羊皮纸/暗金双主题） | ✅ |
+| v1.9.1 | 图片上传裁剪 + 弹窗拖拽修复 + 不单卖标识 + 配色预览分组 + 表单样式优化 | ✅ |
+| v1.10.0 | 商品自定义排序（sort_order + 拖拽排序 + 长图排序联动） | ✅ |
 
 ---
 

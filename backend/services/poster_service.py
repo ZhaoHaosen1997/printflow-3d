@@ -129,7 +129,7 @@ def get_category_poster_data(db: Session, category: str) -> dict:
     products = (
         db.query(Product)
         .filter(Product.category == category, Product.status == "active")
-        .order_by(Product.id)
+        .order_by(Product.sort_order, Product.id)
         .all()
     )
 

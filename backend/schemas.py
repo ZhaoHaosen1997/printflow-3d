@@ -154,6 +154,7 @@ class ProductBase(BaseModel):
     contents: Optional[List[str]] = None
     charity_rate: Optional[Decimal] = None
     search_keywords: Optional[List[str]] = None
+    sort_order: int = 0
     status: str = "active"
 
 
@@ -173,6 +174,7 @@ class ProductUpdate(BaseModel):
     contents: Optional[List[str]] = None
     charity_rate: Optional[Decimal] = None
     search_keywords: Optional[List[str]] = None
+    sort_order: Optional[int] = None
     status: Optional[str] = None
 
 
@@ -197,6 +199,7 @@ class ProductListResponse(BaseModel):
     search_keywords: Optional[List[str]] = None
     image: Optional[str] = None
     bundle_items: Optional[List[int]] = None
+    sort_order: int = 0
     status: str
     created_at: datetime
     updated_at: datetime
@@ -563,3 +566,12 @@ class ProductSalesItem(BaseModel):
 class MessageResponse(BaseModel):
     message: str
     success: bool = True
+
+
+class SortOrderItem(BaseModel):
+    id: int
+    sort_order: int
+
+
+class SortOrderRequest(BaseModel):
+    items: List[SortOrderItem]

@@ -1,11 +1,12 @@
 <script setup>
 import { ref, onMounted, computed, nextTick } from 'vue'
-import { Plus, X, Package, Star, Upload, Crop } from '@lucide/vue'
+import { Plus, X, Package, Star, Upload, Crop, GripVertical, ArrowUpDown, Check } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
 import DataTable from '../components/DataTable.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import Cropper from 'cropperjs'
 import 'cropperjs/dist/cropper.css'
+import draggable from 'vuedraggable'
 
 const { loading, get, post, put, del } = useApi()
 
@@ -15,6 +16,9 @@ const allColors = ref([])
 const standardColors = ref([])
 const comboColors = ref([])
 const categoryFilter = ref('')
+const sortMode = ref(false)
+const sortSaving = ref(false)
+const sortList = ref([])
 
 const categories = [
   { value: '', label: '全部' },
@@ -166,6 +170,30 @@ async function fetchAll() {
   allColors.value = colors
   standardColors.value = colors.filter(c => c.type === 'standard')
   comboColors.value = colors.filter(c => c.type === 'combo')
+}
+
+async function saveSortOrder() {
+  sortSaving.value = true
+  try {
+    const items = sortList.value.map((p, idx) => ({ id: p.id, sort_order: idx }))
+    await put('/api/products/sort-order', { items })
+    sortMode.value = false
+    await fetchAll()
+  } catch (e) {
+    alert('排序保存失败: ' + (e.message || e))
+  } finally {
+    sortSaving.value = false
+  }
+}
+
+function enterSortMode() {
+  sortList.value = [...filteredProducts.value]
+  sortMode.value = true
+}
+
+function cancelSort() {
+  sortMode.value = false
+  sortList.value = []
 }
 
 // --- Product CRUD ---
@@ -414,14 +442,41 @@ onMounted(fetchAll)
         <h2 class="text-2xl font-serif text-gold-title">商品管理</h2>
         <p class="text-sm text-gold-muted mt-1">管理商品、分类、打印配方</p>
       </div>
-      <button
-        class="flex items-center gap-2 px-4 py-2 bg-gold/20 text-gold border border-gold/30 rounded-lg
-               hover:bg-gold/30 transition-colors text-sm"
-        @click="openCreate"
-      >
-        <Plus class="w-4 h-4" />
-        新增商品
-      </button>
+      <div class="flex items-center gap-2">
+        <button
+          v-if="!sortMode"
+          class="flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-gold border border-border-inner rounded-lg hover:bg-dark-card transition-colors"
+          @click="enterSortMode"
+        >
+          <ArrowUpDown class="w-4 h-4" />
+          排序
+        </button>
+        <template v-else>
+          <button
+            class="flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-gray-200 border border-border-inner rounded-lg hover:bg-dark-card transition-colors"
+            @click="cancelSort"
+          >
+            取消
+          </button>
+          <button
+            class="flex items-center gap-2 px-4 py-2 text-sm bg-gold/20 text-gold border border-gold/40 rounded-lg hover:bg-gold/30 transition-colors disabled:opacity-50"
+            :disabled="sortSaving"
+            @click="saveSortOrder"
+          >
+            <Check class="w-4 h-4" />
+            {{ sortSaving ? '保存中...' : '保存排序' }}
+          </button>
+        </template>
+        <button
+          v-if="!sortMode"
+          class="flex items-center gap-2 px-4 py-2 bg-gold/20 text-gold border border-gold/30 rounded-lg
+                 hover:bg-gold/30 transition-colors text-sm"
+          @click="openCreate"
+        >
+          <Plus class="w-4 h-4" />
+          新增商品
+        </button>
+      </div>
     </div>
 
     <!-- Category tabs -->
@@ -441,8 +496,9 @@ onMounted(fetchAll)
       </button>
     </div>
 
-    <!-- Product Table -->
+    <!-- Product Table (normal mode) -->
     <DataTable
+      v-if="!sortMode"
       :columns="columns"
       :data="filteredProducts"
       :loading="loading"
@@ -491,6 +547,44 @@ onMounted(fetchAll)
         <span class="text-gray-500 text-sm">¥{{ Number(value).toFixed(2) }}</span>
       </template>
     </DataTable>
+
+    <!-- Sort mode: draggable list -->
+    <div v-else class="bg-dark-card border border-border-inner rounded-lg overflow-hidden">
+      <div class="px-4 py-3 border-b border-border-inner text-xs font-medium text-gold-muted uppercase tracking-wider">
+        拖拽商品调整顺序，完成后点击「保存排序」
+      </div>
+      <draggable
+        v-model="sortList"
+        item-key="id"
+        handle=".drag-handle"
+        ghost-class="opacity-30"
+        animation="200"
+      >
+        <template #item="{ element }">
+          <div class="flex items-center gap-3 px-4 py-3 border-b border-border-inner/30 hover:bg-dark-input/50 transition-colors">
+            <GripVertical class="w-4 h-4 text-gray-500 drag-handle cursor-grab flex-shrink-0" />
+            <div class="w-8 h-8 rounded bg-dark-input border border-border-inner flex-shrink-0 flex items-center justify-center overflow-hidden">
+              <img
+                v-if="element.image"
+                :src="`/images/${element.image}`"
+                class="w-full h-full object-cover"
+                @error="$event.target.style.display='none'"
+              />
+              <Package v-if="!element.image" class="w-4 h-4 text-gray-500" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm text-gray-200 truncate">{{ element.name }}</div>
+            </div>
+            <StatusBadge :status="element.category" />
+            <span v-if="Number(element.price_single) === 0" class="text-xs px-1.5 py-0.5 rounded bg-gray-500/15 text-gray-400 border border-gray-500/30">不单卖</span>
+            <span v-else class="text-gold-price font-medium text-sm">¥{{ Number(element.price_single).toFixed(2) }}</span>
+          </div>
+        </template>
+      </draggable>
+      <div v-if="sortList.length === 0" class="px-4 py-12 text-center text-gray-500">
+        暂无商品
+      </div>
+    </div>
 
     <!-- Product Form Modal (custom, with color selector) -->
     <Teleport to="body">
