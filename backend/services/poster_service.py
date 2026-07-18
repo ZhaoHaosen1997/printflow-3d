@@ -8,7 +8,7 @@ from jinja2 import Environment, FileSystemLoader
 from playwright.sync_api import sync_playwright
 from sqlalchemy.orm import Session
 
-from backend.models import Product, Color
+from backend.models import Product, Color, Game, Category
 from backend.services.logger_service import log_business, log_error
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -16,9 +16,9 @@ IMAGES_DIR = os.path.join(BASE_DIR, "data", "images")
 TEMPLATES_DIR = os.path.join(BASE_DIR, "backend", "templates", "posters")
 
 CATEGORY_TITLES = {
-    "counter": "诡镇奇谈 3D打印 计数器 合集",
-    "token": "诡镇奇谈 3D打印 指示物 token合集",
-    "other": "诡镇奇谈 3D打印 其他配件 合集",
+    "counter": "计数器 合集",
+    "token": "指示物 token合集",
+    "other": "其他配件 合集",
 }
 
 CATEGORY_NOTICES = [
@@ -122,21 +122,30 @@ def _build_product_data(product: Product, db: Session, show_price: bool = True) 
     return data
 
 
-def get_category_poster_data(db: Session, category: str) -> dict:
+def get_category_poster_data(db: Session, category: str, game_id: int | None = None) -> dict:
     if category not in CATEGORY_TITLES:
         raise ValueError(f"Invalid category: {category}")
 
-    products = (
+    game_name = "3D打印"
+    if game_id:
+        game = db.query(Game).filter(Game.id == game_id).first()
+        if game:
+            game_name = game.name
+
+    products_q = (
         db.query(Product)
         .filter(Product.category == category, Product.status == "active")
-        .order_by(Product.sort_order, Product.id)
-        .all()
     )
+    if game_id:
+        products_q = products_q.filter(Product.games.any(Game.id == game_id))
+    products = products_q.order_by(Product.sort_order, Product.id).all()
 
     product_list = [_build_product_data(p, db, show_price=True) for p in products]
 
+    title = f"{game_name} 3D打印 {CATEGORY_TITLES[category]}"
+
     return {
-        "title": CATEGORY_TITLES[category],
+        "title": title,
         "notices": CATEGORY_NOTICES,
         "products": product_list,
         "footer_lines": FOOTER_LINES,
@@ -202,8 +211,8 @@ def html_to_png(html_content: str, width: int = 750) -> bytes:
     return png_bytes
 
 
-def generate_category_poster(db: Session, category: str, template: str = "parchment", width: int = 750, preview: bool = False):
-    data = get_category_poster_data(db, category)
+def generate_category_poster(db: Session, category: str, template: str = "parchment", width: int = 750, preview: bool = False, game_id: int | None = None):
+    data = get_category_poster_data(db, category, game_id)
     html_content = render_poster_html(data, template, width)
     log_business("生成分类长图", poster_category=category, template=template)
 

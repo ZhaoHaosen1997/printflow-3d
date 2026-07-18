@@ -4,6 +4,63 @@ from typing import Optional, List
 from pydantic import BaseModel, Field, ConfigDict, computed_field
 
 
+# ============ Games ============
+
+class GameCreate(BaseModel):
+    name: str
+    slug: str
+    icon: Optional[str] = None
+    sort_order: int = 0
+
+
+class GameUpdate(BaseModel):
+    name: Optional[str] = None
+    slug: Optional[str] = None
+    icon: Optional[str] = None
+    sort_order: Optional[int] = None
+    status: Optional[str] = None
+
+
+class GameResponse(BaseModel):
+    id: int
+    name: str
+    slug: str
+    icon: Optional[str] = None
+    sort_order: int
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ============ Categories ============
+
+class CategoryCreate(BaseModel):
+    name: str
+    slug: str
+    sort_order: int = 0
+
+
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    slug: Optional[str] = None
+    sort_order: Optional[int] = None
+    status: Optional[str] = None
+
+
+class CategoryResponse(BaseModel):
+    id: int
+    name: str
+    slug: str
+    sort_order: int
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # ============ Colors ============
 
 class ColorBase(BaseModel):
@@ -144,7 +201,7 @@ class PrintRecipeResponse(PrintRecipeBase):
 
 class ProductBase(BaseModel):
     name: str
-    category: str  # counter / token / other / bundle
+    category_id: Optional[int] = None
     xianyu_item_id: Optional[str] = None
     price_single: Decimal = Decimal("0")
     price_bundle: Decimal = Decimal("0")
@@ -159,12 +216,13 @@ class ProductBase(BaseModel):
 
 
 class ProductCreate(ProductBase):
+    game_ids: List[int] = []
     default_recipe: Optional[PrintRecipeCreate] = None
 
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
-    category: Optional[str] = None
+    category_id: Optional[int] = None
     xianyu_item_id: Optional[str] = None
     price_single: Optional[Decimal] = None
     price_bundle: Optional[Decimal] = None
@@ -176,11 +234,31 @@ class ProductUpdate(BaseModel):
     search_keywords: Optional[List[str]] = None
     sort_order: Optional[int] = None
     status: Optional[str] = None
+    game_ids: Optional[List[int]] = None
+
+
+class GameInfo(BaseModel):
+    id: int
+    name: str
+    slug: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CategoryInfo(BaseModel):
+    id: int
+    name: str
+    slug: str
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProductResponse(ProductBase):
     id: int
     material_cost: Decimal
+    category: Optional[str] = None
+    category_obj: Optional[CategoryInfo] = None
+    games: List[GameInfo] = []
     recipes: List[PrintRecipeResponse] = []
     created_at: datetime
     updated_at: datetime
@@ -191,7 +269,10 @@ class ProductResponse(ProductBase):
 class ProductListResponse(BaseModel):
     id: int
     name: str
-    category: str
+    category_id: Optional[int] = None
+    category: Optional[str] = None
+    category_obj: Optional[CategoryInfo] = None
+    games: List[GameInfo] = []
     price_single: Decimal
     price_bundle: Decimal
     material_cost: Decimal

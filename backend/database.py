@@ -152,6 +152,86 @@ def _add_column_safe(table: str, column: str, col_def: str) -> bool:
         conn.close()
 
 
+def seed_games(db):
+    from backend.models import Game
+
+    if db.query(Game).count() > 0:
+        return
+
+    default_games = [
+        Game(name="诡镇奇谈", slug="arkham_horror", sort_order=0),
+    ]
+    for game in default_games:
+        db.add(game)
+    db.commit()
+    print("Seeded default games")
+
+
+def seed_categories(db):
+    from backend.models import Category
+
+    if db.query(Category).count() > 0:
+        return
+
+    default_categories = [
+        Category(name="计数器", slug="counter", sort_order=0),
+        Category(name="指示物", slug="token", sort_order=1),
+        Category(name="其他", slug="other", sort_order=2),
+        Category(name="合集", slug="bundle", sort_order=3),
+    ]
+    for cat in default_categories:
+        db.add(cat)
+    db.commit()
+    print("Seeded default categories")
+
+
+CATEGORY_SLUG_MAP = {
+    "counter": "counter",
+    "token": "token",
+    "other": "other",
+    "bundle": "bundle",
+}
+
+
+def migrate_category_to_id(db):
+    from backend.models import Product, Category, Game, product_games
+
+    if db.query(Product).filter(Product.category_id.is_(None), Product.category.isnot(None)).count() == 0:
+        return
+
+    slug_to_id = {c.slug: c.id for c in db.query(Category).all()}
+    updated = 0
+    for product in db.query(Product).filter(Product.category_id.is_(None), Product.category.isnot(None)).all():
+        cat_slug = CATEGORY_SLUG_MAP.get(product.category)
+        if cat_slug and cat_slug in slug_to_id:
+            product.category_id = slug_to_id[cat_slug]
+            updated += 1
+    if updated:
+        db.commit()
+        print(f"Migrated {updated} products.category → category_id")
+
+
+def migrate_product_games(db):
+    from backend.models import Product, Game, product_games
+    from sqlalchemy import text
+
+    game = db.query(Game).filter(Game.slug == "arkham_horror").first()
+    if not game:
+        return
+
+    result = db.execute(text("SELECT COUNT(*) FROM product_games")).scalar()
+    if result > 0:
+        return
+
+    products = db.query(Product).filter(Product.status == "active").all()
+    for product in products:
+        db.execute(
+            product_games.insert().values(product_id=product.id, game_id=game.id)
+        )
+    db.commit()
+    print(f"Associated {len(products)} products with default game")
+
+
 def init_db():
     from backend import models  # noqa: ensure all models loaded
     from backend.services.logger_service import log_db
@@ -163,11 +243,18 @@ def init_db():
     added = _add_column_safe("products", "sort_order", "INTEGER DEFAULT 0")
     if added:
         log_db("迁移", "products.sort_order 列已添加")
+    added = _add_column_safe("products", "category_id", "INTEGER REFERENCES categories(id)")
+    if added:
+        log_db("迁移", "products.category_id 列已添加")
     db = SessionLocal()
     try:
         seed_colors(db)
         seed_settings(db)
         fix_color_ids(db)
         fix_order_statuses(db)
+        seed_games(db)
+        seed_categories(db)
+        migrate_category_to_id(db)
+        migrate_product_games(db)
     finally:
         db.close()

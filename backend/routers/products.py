@@ -4,7 +4,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session, selectinload
 from backend.database import get_db
-from backend.models import Product, PrintRecipe, PrintRecipeFilament, Inventory
+from backend.models import Product, PrintRecipe, PrintRecipeFilament, Inventory, Game, Category, product_games
 from backend.schemas import (
     ProductCreate, ProductUpdate, ProductResponse,
     PrintRecipeCreate, PrintRecipeUpdate, PrintRecipeResponse,
@@ -25,14 +25,22 @@ router = APIRouter(tags=["products"])
 @router.get("/products", response_model=list[ProductResponse])
 def list_products(
     category: str | None = None,
+    category_id: int | None = None,
+    game_id: int | None = None,
     status: str = "active",
     db: Session = Depends(get_db),
 ):
     q = db.query(Product).options(
-        selectinload(Product.recipes).selectinload(PrintRecipe.recipe_filaments)
+        selectinload(Product.recipes).selectinload(PrintRecipe.recipe_filaments),
+        selectinload(Product.games),
+        selectinload(Product.category_obj),
     )
     if category:
         q = q.filter(Product.category == category)
+    if category_id:
+        q = q.filter(Product.category_id == category_id)
+    if game_id:
+        q = q.filter(Product.games.any(Game.id == game_id))
     if status != "all":
         q = q.filter(Product.status == status)
     return q.order_by(Product.sort_order, Product.id).all()
@@ -58,12 +66,19 @@ def create_product(data: ProductCreate, db: Session = Depends(get_db)):
     elif data.xianyu_item_id == '':
         data.xianyu_item_id = None
 
-    product_data = data.model_dump(exclude={"default_recipe"})
+    product_data = data.model_dump(exclude={"default_recipe", "game_ids"})
+    if data.category_id:
+        cat = db.query(Category).filter(Category.id == data.category_id).first()
+        if cat:
+            product_data["category"] = cat.slug
     product = Product(**product_data)
     db.add(product)
     db.flush()
 
-    # Auto-create inventory record (skip if already exists)
+    if data.game_ids:
+        games = db.query(Game).filter(Game.id.in_(data.game_ids)).all()
+        product.games = games
+
     existing_inv = db.query(Inventory).filter(Inventory.product_id == product.id).first()
     if not existing_inv:
         db.add(Inventory(product_id=product.id, quantity=0, warning_threshold=5))
@@ -79,7 +94,16 @@ def create_product(data: ProductCreate, db: Session = Depends(get_db)):
 
 @router.get("/products/{product_id}", response_model=ProductResponse)
 def get_product(product_id: int, db: Session = Depends(get_db)):
-    product = db.query(Product).filter(Product.id == product_id).first()
+    product = (
+        db.query(Product)
+        .options(
+            selectinload(Product.recipes).selectinload(PrintRecipe.recipe_filaments),
+            selectinload(Product.games),
+            selectinload(Product.category_obj),
+        )
+        .filter(Product.id == product_id)
+        .first()
+    )
     if not product:
         raise HTTPException(404, "商品不存在")
 
@@ -98,10 +122,19 @@ def update_product(product_id: int, data: ProductUpdate, db: Session = Depends(g
         raise HTTPException(404, "商品不存在")
 
     update_data = data.model_dump(exclude_unset=True)
+    game_ids = update_data.pop("game_ids", None)
     if update_data.get('xianyu_item_id') == '':
         update_data['xianyu_item_id'] = None
+    if "category_id" in update_data and update_data["category_id"] is not None:
+        cat = db.query(Category).filter(Category.id == update_data["category_id"]).first()
+        if cat:
+            update_data["category"] = cat.slug
     for key, value in update_data.items():
         setattr(product, key, value)
+
+    if game_ids is not None:
+        games = db.query(Game).filter(Game.id.in_(game_ids)).all()
+        product.games = games
 
     db.commit()
     db.refresh(product)

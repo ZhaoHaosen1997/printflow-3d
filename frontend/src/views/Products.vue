@@ -16,27 +16,49 @@ const allColors = ref([])
 const standardColors = ref([])
 const comboColors = ref([])
 const categoryFilter = ref('')
+const gameFilter = ref('')
 const sortMode = ref(false)
 const sortSaving = ref(false)
 const sortList = ref([])
 
-const categories = [
-  { value: '', label: '全部' },
-  { value: 'counter', label: '计数器' },
-  { value: 'token', label: '指示物' },
-  { value: 'other', label: '其他' },
-  { value: 'bundle', label: '合集' },
-]
+const games = ref([])
+const categories = ref([])
+
+const categoryTabs = computed(() => {
+  const tabs = [{ value: '', label: '全部' }]
+  for (const cat of categories.value) {
+    if (cat.status === 'active') {
+      tabs.push({ value: String(cat.id), label: cat.name })
+    }
+  }
+  return tabs
+})
+
+const gameTabs = computed(() => {
+  const tabs = [{ value: '', label: '全部游戏' }]
+  for (const game of games.value) {
+    if (game.status === 'active') {
+      tabs.push({ value: String(game.id), label: game.name })
+    }
+  }
+  return tabs
+})
 
 const filteredProducts = computed(() => {
-  const active = products.value.filter(p => p.status === 'active')
-  if (!categoryFilter.value) return active
-  return active.filter(p => p.category === categoryFilter.value)
+  let active = products.value.filter(p => p.status === 'active')
+  if (categoryFilter.value) {
+    active = active.filter(p => String(p.category_id) === categoryFilter.value)
+  }
+  if (gameFilter.value) {
+    const gid = Number(gameFilter.value)
+    active = active.filter(p => p.games && p.games.some(g => g.id === gid))
+  }
+  return active
 })
 
 const columns = [
   { key: 'name', label: '商品名称', sortable: true, mobileLabel: '名称' },
-  { key: 'category', label: '分类', mobileHidden: true },
+  { key: 'category', label: '分类', mobileHidden: true, format: (val, row) => row.category_obj?.name || val },
   { key: 'price_single', label: '单品售价', mobileLabel: '售价' },
   { key: 'price_bundle', label: '合集价', mobileHidden: true },
   { key: 'material_cost', label: '材料成本', mobileLabel: '成本' },
@@ -77,7 +99,7 @@ const cropImageEl = ref(null)
 
 const productForm = ref({
   name: '',
-  category: 'counter',
+  category_id: null,
   xianyu_item_id: '',
   price_single: 0,
   price_bundle: 0,
@@ -86,6 +108,7 @@ const productForm = ref({
   contents: [],
   charity_rate: '',
   search_keywords: '',
+  game_ids: [],
 })
 
 // color selector state
@@ -99,7 +122,7 @@ const allActive = computed(() => products.value.filter(p => p.status === 'active
 function resetProductForm() {
   productForm.value = {
     name: '',
-    category: 'counter',
+    category_id: categories.value.length > 0 ? categories.value[0].id : null,
     xianyu_item_id: '',
     price_single: 0,
     price_bundle: 0,
@@ -108,10 +131,25 @@ function resetProductForm() {
     contents: [],
     charity_rate: '',
     search_keywords: '',
+    game_ids: games.value.length > 0 ? [games.value[0].id] : [],
   }
   colorMode.value = 'fixed'
   selectedFixedColorId.value = null
   selectedOptionalColorIds.value = []
+}
+
+function toggleGameId(gameId) {
+  const idx = productForm.value.game_ids.indexOf(gameId)
+  if (idx >= 0) {
+    productForm.value.game_ids.splice(idx, 1)
+  } else {
+    productForm.value.game_ids.push(gameId)
+  }
+}
+
+function isBundleCategory() {
+  const cat = categories.value.find(c => c.id === productForm.value.category_id)
+  return cat && cat.slug === 'bundle'
 }
 
 function selectFixedColor(colorId) {
@@ -160,16 +198,20 @@ function buildColorsPayload() {
 }
 
 async function fetchAll() {
-  const [prods, fils, colors] = await Promise.all([
+  const [prods, fils, colors, gamesData, catsData] = await Promise.all([
     get('/api/products'),
     get('/api/filaments'),
     get('/api/colors'),
+    get('/api/games'),
+    get('/api/categories'),
   ])
   products.value = prods
   filaments.value = fils
   allColors.value = colors
   standardColors.value = colors.filter(c => c.type === 'standard')
   comboColors.value = colors.filter(c => c.type === 'combo')
+  games.value = gamesData
+  categories.value = catsData
 }
 
 async function saveSortOrder() {
@@ -208,7 +250,7 @@ function editProduct(row) {
   editingProduct.value = row
   productForm.value = {
     name: row.name,
-    category: row.category,
+    category_id: row.category_id,
     xianyu_item_id: row.xianyu_item_id || '',
     price_single: row.price_single,
     price_bundle: row.price_bundle,
@@ -217,6 +259,7 @@ function editProduct(row) {
     contents: row.contents ? [...row.contents] : [],
     charity_rate: row.charity_rate != null ? String(row.charity_rate) : '',
     search_keywords: row.search_keywords ? row.search_keywords.join(', ') : '',
+    game_ids: row.games ? row.games.map(g => g.id) : [],
   }
   const c = row.colors
   if (c && c.type === '固定') {
@@ -247,12 +290,14 @@ async function handleProductSubmit() {
     const payload = {
       ...productForm.value,
       charity_rate: productForm.value.charity_rate ? Number(productForm.value.charity_rate) : null,
-      bundle_items: productForm.value.category === 'bundle' ? productForm.value.bundle_items : [],
+      bundle_items: isBundleCategory() ? productForm.value.bundle_items : [],
       colors: buildColorsPayload(),
       search_keywords: productForm.value.search_keywords
         ? productForm.value.search_keywords.split(/[,，]/).map(s => s.trim()).filter(Boolean)
         : null,
     }
+    const selectedCat = categories.value.find(c => c.id === productForm.value.category_id)
+    if (selectedCat) payload.category = selectedCat.slug
     if (payload.xianyu_item_id === '') payload.xianyu_item_id = null
     if (editingProduct.value) {
       const updated = await put(`/api/products/${editingProduct.value.id}`, payload)
@@ -479,11 +524,28 @@ onMounted(fetchAll)
       </div>
     </div>
 
+    <!-- Game tabs -->
+    <div class="flex gap-2 mb-2 overflow-x-auto pb-1">
+      <button
+        v-for="game in gameTabs"
+        :key="'g-' + game.value"
+        class="px-3 py-1.5 rounded-md text-sm transition-colors font-medium"
+        :class="
+          gameFilter === game.value
+            ? 'bg-gold/20 text-gold border border-gold/30'
+            : 'text-gray-600 hover:text-gold border border-transparent hover:bg-dark-card'
+        "
+        @click="gameFilter = game.value"
+      >
+        {{ game.label }}
+      </button>
+    </div>
+
     <!-- Category tabs -->
     <div class="flex gap-2 mb-4 overflow-x-auto pb-1">
       <button
-        v-for="cat in categories"
-        :key="cat.value"
+        v-for="cat in categoryTabs"
+        :key="'c-' + cat.value"
         class="px-3 py-1.5 rounded-md text-sm transition-colors font-medium"
         :class="
           categoryFilter === cat.value
@@ -611,12 +673,29 @@ onMounted(fetchAll)
               </div>
               <div>
                 <label class="block text-sm text-gray-400 mb-1">分类 <span class="text-red-400">*</span></label>
-                <select v-model="productForm.category" required class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50">
-                  <option value="counter">计数器类</option>
-                  <option value="token">指示物类</option>
-                  <option value="other">其他配件</option>
-                  <option value="bundle">合集</option>
+                <select v-model="productForm.category_id" required class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50">
+                  <option v-for="cat in categories.filter(c => c.status === 'active')" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
                 </select>
+              </div>
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">所属游戏</label>
+                <div class="flex flex-wrap gap-2">
+                  <label
+                    v-for="game in games.filter(g => g.status === 'active')"
+                    :key="game.id"
+                    class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm border cursor-pointer transition-colors"
+                    :class="productForm.game_ids.includes(game.id) ? 'bg-gold/20 text-gold border-gold/30' : 'text-gray-400 border-border-inner hover:border-gold/30'"
+                  >
+                    <input
+                      type="checkbox"
+                      :value="game.id"
+                      :checked="productForm.game_ids.includes(game.id)"
+                      @change="toggleGameId(game.id)"
+                      class="sr-only"
+                    />
+                    {{ game.name }}
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -626,7 +705,7 @@ onMounted(fetchAll)
                 <input v-model.number="productForm.price_single" type="number" step="0.01" min="0" required class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" />
                 <p class="text-xs text-gray-600 mt-1">设为 0 表示不单卖（仅作为合集子商品）</p>
               </div>
-              <div v-if="productForm.category !== 'bundle'">
+              <div v-if="!isBundleCategory()">
                 <label class="block text-sm text-gray-400 mb-1">合集优惠价</label>
                 <input v-model.number="productForm.price_bundle" type="number" step="0.01" min="0" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" />
               </div>
@@ -674,7 +753,7 @@ onMounted(fetchAll)
             </div>
 
             <!-- Bundle items (only for bundle) -->
-            <div v-if="productForm.category === 'bundle'">
+            <div v-if="isBundleCategory()">
               <label class="block text-sm text-gray-400 mb-2">子商品列表</label>
               <div class="space-y-2">
                 <div v-for="(item, idx) in productForm.bundle_items" :key="idx" class="flex gap-2 items-center">

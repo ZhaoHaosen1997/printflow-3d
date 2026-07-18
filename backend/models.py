@@ -1,10 +1,45 @@
 from datetime import datetime
 from sqlalchemy import (
     Column, Integer, String, Float, Boolean, JSON, Text, DateTime,
-    ForeignKey, Index, Numeric, text,
+    ForeignKey, Index, Numeric, text, Table, UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from backend.database import Base
+
+
+product_games = Table(
+    "product_games",
+    Base.metadata,
+    Column("product_id", Integer, ForeignKey("products.id", ondelete="CASCADE"), primary_key=True),
+    Column("game_id", Integer, ForeignKey("games.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
+class Game(Base):
+    __tablename__ = "games"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False, unique=True)
+    slug = Column(String(100), nullable=False, unique=True)
+    icon = Column(String(50), nullable=True)
+    sort_order = Column(Integer, default=0)
+    status = Column(String(20), default="active")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    products = relationship("Product", secondary=product_games, back_populates="games")
+
+
+class Category(Base):
+    __tablename__ = "categories"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False, unique=True)
+    slug = Column(String(100), nullable=False, unique=True)
+    sort_order = Column(Integer, default=0)
+    status = Column(String(20), default="active")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class Color(Base):
@@ -40,7 +75,8 @@ class Product(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     xianyu_item_id = Column(String(100), unique=True, nullable=True)
     name = Column(String(200), nullable=False)
-    category = Column(String(20), nullable=False)
+    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True, index=True)
+    category = Column(String(20), nullable=True)
     price_single = Column(Numeric(10, 2), default=0)
     price_bundle = Column(Numeric(10, 2), default=0)
     image = Column(Text, nullable=True)
@@ -56,6 +92,8 @@ class Product(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     recipes = relationship("PrintRecipe", back_populates="product", order_by="PrintRecipe.print_count.desc()")
+    games = relationship("Game", secondary=product_games, back_populates="products")
+    category_obj = relationship("Category")
 
 
 class PrintRecipe(Base):

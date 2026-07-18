@@ -15,6 +15,7 @@ def generate_category_poster(
     template: str = Query("parchment", description="模板: parchment | dark-gold"),
     width: int = Query(750, description="图片宽度"),
     preview: bool = Query(False, description="预览模式，返回HTML"),
+    game_id: int | None = Query(None, description="游戏ID，用于标题和筛选"),
     db: Session = Depends(get_db),
 ):
     if category not in poster_service.CATEGORY_TITLES:
@@ -23,14 +24,15 @@ def generate_category_poster(
         raise HTTPException(status_code=400, detail=f"Invalid template: {template}. Must be parchment or dark-gold")
 
     try:
-        result = poster_service.generate_category_poster(db, category, template, width, preview)
+        result = poster_service.generate_category_poster(db, category, template, width, preview, game_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
     if preview:
         return HTMLResponse(content=result)
 
-    title = poster_service.CATEGORY_TITLES[category]
+    data = poster_service.get_category_poster_data(db, category, game_id)
+    title = data["title"]
     filename = f"{title}-poster.png"
     encoded_filename = quote(filename)
     return Response(

@@ -9,6 +9,7 @@ const { isMobile } = useBreakpoint()
 
 const posterType = ref('category')
 const category = ref('counter')
+const gameId = ref(null)
 const bundleId = ref(null)
 const template = ref('parchment')
 const width = ref(750)
@@ -18,12 +19,14 @@ const downloading = ref(false)
 const bundles = ref([])
 const previewContainer = ref(null)
 const iframeScale = ref(1)
+const games = ref([])
+const categoriesFromApi = ref([])
 
-const categoryOptions = [
-  { value: 'counter', label: '计数器' },
-  { value: 'token', label: '指示物' },
-  { value: 'other', label: '其他配件' },
-]
+const categoryOptions = computed(() => {
+  return categoriesFromApi.value
+    .filter(c => c.status === 'active' && c.slug !== 'bundle')
+    .map(c => ({ value: c.slug, label: c.name }))
+})
 
 const templateOptions = [
   { value: 'parchment', label: '羊皮纸' },
@@ -37,7 +40,9 @@ const widthOptions = [
 
 const previewUrl = computed(() => {
   if (posterType.value === 'category') {
-    return `/api/posters/category?category=${category.value}&template=${template.value}&width=${width.value}&preview=true`
+    let url = `/api/posters/category?category=${category.value}&template=${template.value}&width=${width.value}&preview=true`
+    if (gameId.value) url += `&game_id=${gameId.value}`
+    return url
   } else {
     if (!bundleId.value) return ''
     return `/api/posters/bundle/${bundleId.value}?template=${template.value}&width=${width.value}&preview=true`
@@ -46,7 +51,9 @@ const previewUrl = computed(() => {
 
 const downloadUrl = computed(() => {
   if (posterType.value === 'category') {
-    return `/api/posters/category?category=${category.value}&template=${template.value}&width=${width.value}`
+    let url = `/api/posters/category?category=${category.value}&template=${template.value}&width=${width.value}`
+    if (gameId.value) url += `&game_id=${gameId.value}`
+    return url
   } else {
     if (!bundleId.value) return ''
     return `/api/posters/bundle/${bundleId.value}?template=${template.value}&width=${width.value}`
@@ -103,12 +110,27 @@ function downloadPoster() {
   setTimeout(() => { downloading.value = false }, 2000)
 }
 
-watch([posterType, category, bundleId, template, width], () => {
+watch([posterType, category, gameId, bundleId, template, width], () => {
   loadPreview()
 })
 
+async function fetchGamesAndCategories() {
+  try {
+    const [gamesData, catsData] = await Promise.all([
+      get('/api/games'),
+      get('/api/categories'),
+    ])
+    games.value = gamesData.filter(g => g.status === 'active')
+    categoriesFromApi.value = catsData
+    if (categoryOptions.value.length > 0 && !categoryOptions.value.find(o => o.value === category.value)) {
+      category.value = categoryOptions.value[0].value
+    }
+  } catch (e) {}
+}
+
 onMounted(() => {
   fetchBundles()
+  fetchGamesAndCategories()
   loadPreview()
   window.addEventListener('resize', calcScale)
 })
@@ -143,6 +165,20 @@ onBeforeUnmount(() => {
                 <span class="text-sm text-gray-300">固定合集</span>
               </label>
             </div>
+          </div>
+
+          <div v-if="posterType === 'category'">
+            <label class="block text-sm text-gray-200 font-medium mb-2">游戏</label>
+            <select
+              v-model="gameId"
+              class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm
+                     focus:outline-none focus:border-gold/50"
+            >
+              <option :value="null">全部游戏</option>
+              <option v-for="game in games" :key="game.id" :value="game.id">
+                {{ game.name }}
+              </option>
+            </select>
           </div>
 
           <div v-if="posterType === 'category'">
