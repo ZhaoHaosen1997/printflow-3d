@@ -1,6 +1,6 @@
 """PrintFlow-3D 日志服务
 
-日志写入 data/logs/app.log，按 5MB 滚动，保留 10 个历史文件。
+日志写入 logs/app.log，按 5MB 滚动，保留 10 个历史文件。
 同时输出到控制台（stdout），方便 uvicorn 日志聚合。
 
 用法:
@@ -13,7 +13,7 @@ import os
 from logging.handlers import RotatingFileHandler
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-LOG_DIR = os.path.join(BASE_DIR, "data", "logs")
+LOG_DIR = os.path.join(BASE_DIR, "logs")
 LOG_FILE = os.path.join(LOG_DIR, "app.log")
 
 os.makedirs(LOG_DIR, exist_ok=True)
