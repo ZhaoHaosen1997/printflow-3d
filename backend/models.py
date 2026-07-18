@@ -126,6 +126,9 @@ ORDER_STATUS = {
 
 class Order(Base):
     __tablename__ = "orders"
+    __table_args__ = (
+        Index("idx_order_status_completed", "status", "completed_time"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     order_no = Column(String(50), unique=True, nullable=False)

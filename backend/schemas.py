@@ -561,6 +561,37 @@ class ProductSalesItem(BaseModel):
     profit: Decimal = Decimal("0")
 
 
+# ============ Dashboard ============
+
+class RecentOrder(BaseModel):
+    id: int
+    order_no: str
+    buyer_nickname: str | None = None
+    status: str
+    actual_amount: Decimal = Decimal("0")
+    order_time: datetime | None = None
+    item_summary: str = ""
+
+
+class PrintTaskStats(BaseModel):
+    pending: int = 0
+    printing: int = 0
+    done: int = 0
+    failed: int = 0
+
+
+class DashboardSummary(BaseModel):
+    pending_ship_count: int = 0
+    low_stock_count: int = 0
+    monthly_revenue: Decimal = Decimal("0")
+    monthly_cost: Decimal = Decimal("0")
+    monthly_profit: Decimal = Decimal("0")
+    printing_count: int = 0
+    pending_print_count: int = 0
+    recent_orders: List[RecentOrder] = []
+    print_task_stats: PrintTaskStats = PrintTaskStats()
+
+
 # ============ Common ============
 
 class MessageResponse(BaseModel):

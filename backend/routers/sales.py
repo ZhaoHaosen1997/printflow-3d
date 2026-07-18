@@ -9,8 +9,8 @@ from backend.schemas import SalesOverviewResponse, MonthlySalesItem, ProductSale
 router = APIRouter(prefix="/sales", tags=["sales"])
 
 
-def _completed_orders(db: Session, date_from: str | None = None, date_to: str | None = None):
-    q = db.query(Order).filter(Order.status == "completed")
+def _completed_filter(query, date_from: str | None = None, date_to: str | None = None):
+    q = query.filter(Order.status == "completed")
     if date_from:
         q = q.filter(Order.completed_time >= date_from)
     if date_to:
@@ -24,26 +24,34 @@ def sales_overview(
     date_to: str | None = None,
     db: Session = Depends(get_db),
 ):
-    orders = _completed_orders(db, date_from, date_to).all()
+    order_agg = _completed_filter(
+        db.query(
+            func.count(Order.id).label("cnt"),
+            func.coalesce(func.sum(Order.actual_amount), 0).label("revenue"),
+            func.coalesce(func.sum(Order.shipping_fee), 0).label("shipping"),
+            func.coalesce(func.sum(Order.packaging_fee), 0).label("packaging"),
+            func.coalesce(func.sum(Order.service_fee), 0).label("service"),
+            func.coalesce(func.sum(Order.charity_fee), 0).label("charity"),
+            func.coalesce(func.sum(Order.discount), 0).label("discount"),
+        ),
+        date_from, date_to,
+    ).one()
 
-    total_orders = len(orders)
-    total_revenue = Decimal("0")
-    total_material_cost = Decimal("0")
-    total_shipping_fee = Decimal("0")
-    total_packaging_fee = Decimal("0")
-    total_service_fee = Decimal("0")
-    total_charity_fee = Decimal("0")
-    total_discount = Decimal("0")
+    total_orders = order_agg.cnt
+    total_revenue = Decimal(str(order_agg.revenue))
+    total_shipping_fee = Decimal(str(order_agg.shipping))
+    total_packaging_fee = Decimal(str(order_agg.packaging))
+    total_service_fee = Decimal(str(order_agg.service))
+    total_charity_fee = Decimal(str(order_agg.charity))
+    total_discount = Decimal(str(order_agg.discount))
 
-    for o in orders:
-        total_revenue += o.actual_amount or Decimal("0")
-        total_shipping_fee += o.shipping_fee or Decimal("0")
-        total_packaging_fee += o.packaging_fee or Decimal("0")
-        total_service_fee += o.service_fee or Decimal("0")
-        total_charity_fee += o.charity_fee or Decimal("0")
-        total_discount += o.discount or Decimal("0")
-        for item in o.items:
-            total_material_cost += (item.material_cost or Decimal("0")) * (item.quantity or 1)
+    material_cost_row = _completed_filter(
+        db.query(
+            func.coalesce(func.sum(OrderItem.material_cost * OrderItem.quantity), 0)
+        ).join(Order, OrderItem.order_id == Order.id),
+        date_from, date_to,
+    ).scalar()
+    total_material_cost = Decimal(str(material_cost_row))
 
     total_profit = total_revenue - total_material_cost - total_shipping_fee - total_packaging_fee - total_service_fee - total_charity_fee
 
@@ -67,41 +75,53 @@ def sales_monthly(
     year: int = Query(ge=2020, le=2100),
     db: Session = Depends(get_db),
 ):
-    orders = (
-        db.query(Order)
-        .filter(
-            Order.status == "completed",
-            extract("year", Order.completed_time) == year,
+    monthly_orders = (
+        db.query(
+            extract("month", Order.completed_time).label("month"),
+            func.count(Order.id).label("orders"),
+            func.coalesce(func.sum(Order.actual_amount), 0).label("revenue"),
+            func.coalesce(func.sum(Order.shipping_fee), 0).label("shipping"),
+            func.coalesce(func.sum(Order.packaging_fee), 0).label("packaging"),
+            func.coalesce(func.sum(Order.service_fee), 0).label("service"),
+            func.coalesce(func.sum(Order.charity_fee), 0).label("charity"),
         )
+        .filter(Order.status == "completed", extract("year", Order.completed_time) == year)
+        .group_by(extract("month", Order.completed_time))
         .all()
     )
+    order_map = {int(row.month): row for row in monthly_orders}
 
-    monthly = {m: {"orders": 0, "revenue": Decimal("0"), "material_cost": Decimal("0"),
-                   "shipping_fee": Decimal("0"), "packaging_fee": Decimal("0"),
-                   "service_fee": Decimal("0"), "charity_fee": Decimal("0")} for m in range(1, 13)}
-
-    for o in orders:
-        m = o.completed_time.month
-        monthly[m]["orders"] += 1
-        monthly[m]["revenue"] += o.actual_amount or Decimal("0")
-        monthly[m]["shipping_fee"] += o.shipping_fee or Decimal("0")
-        monthly[m]["packaging_fee"] += o.packaging_fee or Decimal("0")
-        monthly[m]["service_fee"] += o.service_fee or Decimal("0")
-        monthly[m]["charity_fee"] += o.charity_fee or Decimal("0")
-        for item in o.items:
-            monthly[m]["material_cost"] += (item.material_cost or Decimal("0")) * (item.quantity or 1)
+    monthly_cost = (
+        db.query(
+            extract("month", Order.completed_time).label("month"),
+            func.coalesce(func.sum(OrderItem.material_cost * OrderItem.quantity), 0).label("material_cost"),
+        )
+        .join(Order, OrderItem.order_id == Order.id)
+        .filter(Order.status == "completed", extract("year", Order.completed_time) == year)
+        .group_by(extract("month", Order.completed_time))
+        .all()
+    )
+    cost_map = {int(row.month): Decimal(str(row.material_cost)) for row in monthly_cost}
 
     result = []
     for m in range(1, 13):
-        d = monthly[m]
-        profit = (d["revenue"] - d["material_cost"] - d["shipping_fee"]
-                  - d["packaging_fee"] - d["service_fee"] - d["charity_fee"])
-        result.append(MonthlySalesItem(
-            month=m,
-            orders=d["orders"],
-            revenue=d["revenue"],
-            profit=profit,
-        ))
+        row = order_map.get(m)
+        if row:
+            revenue = Decimal(str(row.revenue))
+            shipping = Decimal(str(row.shipping))
+            packaging = Decimal(str(row.packaging))
+            service = Decimal(str(row.service))
+            charity = Decimal(str(row.charity))
+            material_cost = cost_map.get(m, Decimal("0"))
+            profit = revenue - material_cost - shipping - packaging - service - charity
+            result.append(MonthlySalesItem(
+                month=m,
+                orders=row.orders,
+                revenue=revenue,
+                profit=profit,
+            ))
+        else:
+            result.append(MonthlySalesItem(month=m))
     return result
 
 
@@ -112,49 +132,75 @@ def sales_by_product(
     sort_by: str = "profit",
     db: Session = Depends(get_db),
 ):
-    orders = _completed_orders(db, date_from, date_to).all()
+    rows = _completed_filter(
+        db.query(
+            OrderItem.product_id,
+            OrderItem.product_name,
+            OrderItem.quantity,
+            OrderItem.unit_price,
+            OrderItem.material_cost,
+            Order.id.label("order_id"),
+            Order.shipping_fee,
+            Order.packaging_fee,
+            Order.service_fee,
+            Order.charity_fee,
+        ).join(Order, OrderItem.order_id == Order.id),
+        date_from, date_to,
+    ).all()
 
-    # Batch-load all referenced products
-    all_pids = {item.product_id for o in orders for item in o.items}
+    all_pids = {r.product_id for r in rows}
     product_map = {
         p.id: p
         for p in db.query(Product).filter(Product.id.in_(all_pids)).all()
     } if all_pids else {}
 
+    order_fees: dict[int, dict] = {}
+    for r in rows:
+        oid = r.order_id
+        if oid not in order_fees:
+            order_fees[oid] = {
+                "fees": (r.shipping_fee or Decimal("0")) + (r.packaging_fee or Decimal("0"))
+                        + (r.service_fee or Decimal("0")) + (r.charity_fee or Decimal("0")),
+                "items": [],
+            }
+        item_revenue = (r.unit_price or Decimal("0")) * (r.quantity or 1)
+        order_fees[oid]["items"].append({
+            "product_id": r.product_id,
+            "item_revenue": item_revenue,
+        })
+
+    for oid, of in order_fees.items():
+        total_item_revenue = sum(it["item_revenue"] for it in of["items"]) or Decimal("1")
+        for it in of["items"]:
+            it["fee_share"] = (of["fees"] * it["item_revenue"] / total_item_revenue).quantize(Decimal("0.01"))
+
     product_stats: dict[int, dict] = {}
+    for r in rows:
+        pid = r.product_id
+        item_revenue = (r.unit_price or Decimal("0")) * (r.quantity or 1)
+        item_material_cost = (r.material_cost or Decimal("0")) * (r.quantity or 1)
 
-    for o in orders:
-        # Per-order fees
-        o_shipping = o.shipping_fee or Decimal("0")
-        o_packaging = o.packaging_fee or Decimal("0")
-        o_service = o.service_fee or Decimal("0")
-        o_charity = o.charity_fee or Decimal("0")
-        o_fees = o_shipping + o_packaging + o_service + o_charity
-        # Total item revenue for this order (for fee allocation)
-        o_item_revenue = sum(
-            (item.unit_price or Decimal("0")) * (item.quantity or 1)
-            for item in o.items
-        ) or Decimal("1")
+        fee_share = Decimal("0")
+        for it in order_fees.get(r.order_id, {}).get("items", []):
+            if it["product_id"] == pid:
+                fee_share = it.get("fee_share", Decimal("0"))
+                break
 
-        for item in o.items:
-            pid = item.product_id
-            item_revenue = (item.unit_price or Decimal("0")) * (item.quantity or 1)
-            if pid not in product_stats:
-                product = product_map.get(pid)
-                product_stats[pid] = {
-                    "product_id": pid,
-                    "product_name": product.name if product else (item.product_name or f"商品#{pid}"),
-                    "category": product.category if product else "other",
-                    "quantity": 0,
-                    "revenue": Decimal("0"),
-                    "material_cost": Decimal("0"),
-                    "fees": Decimal("0"),
-                }
-            product_stats[pid]["quantity"] += item.quantity or 1
-            product_stats[pid]["revenue"] += item_revenue
-            product_stats[pid]["material_cost"] += (item.material_cost or Decimal("0")) * (item.quantity or 1)
-            # Allocate order fees proportionally by item revenue share
-            product_stats[pid]["fees"] += (o_fees * item_revenue / o_item_revenue).quantize(Decimal("0.01"))
+        if pid not in product_stats:
+            product = product_map.get(pid)
+            product_stats[pid] = {
+                "product_id": pid,
+                "product_name": product.name if product else (r.product_name or f"商品#{pid}"),
+                "category": product.category if product else "other",
+                "quantity": 0,
+                "revenue": Decimal("0"),
+                "material_cost": Decimal("0"),
+                "fees": Decimal("0"),
+            }
+        product_stats[pid]["quantity"] += r.quantity or 1
+        product_stats[pid]["revenue"] += item_revenue
+        product_stats[pid]["material_cost"] += item_material_cost
+        product_stats[pid]["fees"] += fee_share
 
     result = []
     for ps in product_stats.values():
@@ -164,5 +210,3 @@ def sales_by_product(
     reverse = sort_by not in ("profit", "quantity", "revenue")
     result.sort(key=lambda x: getattr(x, sort_by, x.profit), reverse=True)
     return result
-
-

@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
-  { path: '/', redirect: '/sales' },
+  { path: '/', name: 'Dashboard', component: () => import('../views/Dashboard.vue') },
   { path: '/sales', name: 'Sales', component: () => import('../views/Sales.vue') },
   { path: '/colors', name: 'Colors', component: () => import('../views/Colors.vue') },
   { path: '/filaments', name: 'Filaments', component: () => import('../views/Filaments.vue') },
@@ -15,7 +15,7 @@ const routes = [
   { path: '/buyers', name: 'Buyers', component: () => import('../views/Buyers.vue') },
   { path: '/archived', name: 'ArchivedData', component: () => import('../views/ArchivedData.vue') },
   { path: '/poster-generator', name: 'PosterGenerator', component: () => import('../views/PosterGenerator.vue') },
-  { path: '/:pathMatch(.*)*', redirect: '/sales' },
+  { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 
 const router = createRouter({

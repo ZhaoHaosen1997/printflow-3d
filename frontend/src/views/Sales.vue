@@ -111,6 +111,13 @@ async function fetchAll() {
   }
 }
 
+async function fetchByProduct() {
+  const params = new URLSearchParams()
+  if (dateFrom.value) params.set('date_from', dateFrom.value)
+  if (dateTo.value) params.set('date_to', dateTo.value)
+  products.value = await get(`/api/sales/by-product?${params}&sort_by=${productSort.value}`)
+}
+
 const chartData = computed(() => ({
   labels: monthLabels,
   datasets: [
@@ -170,7 +177,7 @@ function categoryLabel(cat) {
 }
 
 watch(year, fetchAll)
-watch(productSort, fetchAll)
+watch(productSort, fetchByProduct)
 
 onMounted(fetchAll)
 </script>
