@@ -2,8 +2,10 @@
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { Image, Download, RefreshCw } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
+import { useBreakpoint } from '../composables/useBreakpoint'
 
 const { get } = useApi()
+const { isMobile } = useBreakpoint()
 
 const posterType = ref('category')
 const category = ref('counter')
@@ -224,9 +226,19 @@ onBeforeUnmount(() => {
           <span class="text-xs text-gray-500 ml-2">{{ width }}px</span>
           <span v-if="previewLoading" class="text-xs text-gray-500 ml-2">加载中...</span>
         </div>
-        <div ref="previewContainer" class="p-4 flex justify-center bg-dark-input/50 min-h-[400px] overflow-auto">
+        <div ref="previewContainer" class="p-4 flex justify-center bg-dark-input/50 min-h-[300px] md:min-h-[400px] overflow-auto">
           <div
-            v-if="previewHtml"
+            v-if="previewHtml && isMobile"
+            class="w-full"
+          >
+            <iframe
+              :srcdoc="previewHtml"
+              class="w-full"
+              :style="{ minHeight: '400px', border: 'none' }"
+            ></iframe>
+          </div>
+          <div
+            v-else-if="previewHtml"
             :style="{
               width: width + 'px',
               transform: `scale(${iframeScale})`,

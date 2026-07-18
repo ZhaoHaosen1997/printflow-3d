@@ -37,11 +37,11 @@ function selectMaterialSuggestion(m) {
 const activeFilaments = computed(() => filaments.value.filter(f => f.status === 'active'))
 
 const columns = [
-  { key: 'display_name', label: '显示名称', sortable: true },
-  { key: 'brand', label: '品牌', sortable: true },
-  { key: 'material', label: '材料' },
-  { key: 'price_per_kg', label: '单价/kg' },
-  { key: 'status', label: '状态' },
+  { key: 'display_name', label: '显示名称', sortable: true, mobileLabel: '名称' },
+  { key: 'brand', label: '品牌', sortable: true, mobileHidden: true },
+  { key: 'material', label: '材料', mobileLabel: '材料' },
+  { key: 'price_per_kg', label: '单价/kg', mobileLabel: '单价' },
+  { key: 'status', label: '状态', mobileLabel: '状态' },
 ]
 
 const actions = [

@@ -3,9 +3,16 @@ import { ref, computed } from 'vue'
 import { Palette, Layers, Package, Settings, ChevronDown, Paintbrush, ShoppingBag, Boxes, SlidersHorizontal, FileText, Printer, Users, TrendingUp, Archive, Image, LayoutDashboard } from '@lucide/vue'
 import { useRoute } from 'vue-router'
 import { useTheme } from '../composables/useTheme'
+import { useBreakpoint } from '../composables/useBreakpoint'
+
+const props = defineProps({
+  mobileOpen: { type: Boolean, default: false },
+})
+const emit = defineEmits(['close'])
 
 const route = useRoute()
 const { themes, currentTheme, setTheme } = useTheme()
+const { isMobile } = useBreakpoint()
 
 const topItems = [
   { to: '/', label: '仪表盘', icon: LayoutDashboard, exact: true },
@@ -41,23 +48,44 @@ const sysActive = computed(() =>
 function toggleSys() {
   sysExpanded.value = !sysExpanded.value
 }
+
+function isActive(item) {
+  return item.exact ? route.path === item.to : route.path.startsWith(item.to)
+}
 </script>
 
 <template>
-  <aside class="w-60 flex-shrink-0 bg-dark-card border-r border-border-inner flex flex-col">
+  <!-- Mobile overlay -->
+  <Transition name="fade">
+    <div
+      v-if="isMobile && mobileOpen"
+      class="fixed inset-0 z-30 bg-black/50 md:hidden"
+      @click="emit('close')"
+    ></div>
+  </Transition>
+
+  <!-- Sidebar -->
+  <aside
+    :class="[
+      'w-60 bg-dark-card border-r border-border-inner flex flex-col flex-shrink-0',
+      isMobile
+        ? 'fixed inset-y-0 left-0 z-40 transition-transform duration-200 ease-in-out'
+        : ''
+    ]"
+    :style="isMobile ? { transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)' } : {}"
+  >
     <div class="p-5 border-b border-border-inner">
       <h1 class="text-xl font-serif text-gold-title tracking-wide">PrintFlow 3D</h1>
-      <p class="text-xs text-gold-muted mt-1">v1.11.0</p>
+      <p class="text-xs text-gold-muted mt-1">v1.12.0</p>
     </div>
     <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
-      <!-- Top-level items -->
       <router-link
         v-for="item in topItems"
         :key="item.to"
         :to="item.to"
         class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
         :class="
-          (item.exact ? route.path === item.to : route.path.startsWith(item.to))
+          isActive(item)
             ? 'bg-gold/10 text-gold border border-border-main/30'
             : 'text-gray-400 hover:text-gray-200 hover:bg-dark-input'
         "
@@ -66,15 +94,10 @@ function toggleSys() {
         {{ item.label }}
       </router-link>
 
-      <!-- System management group -->
       <div class="pt-3">
         <button
           class="flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-colors"
-          :class="
-            sysActive
-              ? 'text-gold'
-              : 'text-gray-500 hover:text-gray-300'
-          "
+          :class="sysActive ? 'text-gold' : 'text-gray-500 hover:text-gray-300'"
           @click="toggleSys"
         >
           <div class="flex items-center gap-3">
@@ -109,7 +132,6 @@ function toggleSys() {
             {{ item.label }}
           </component>
 
-          <!-- Theme switcher -->
           <div class="px-3 py-2">
             <div class="flex items-center gap-2 text-xs text-gold-muted mb-2">
               <Paintbrush class="w-3.5 h-3.5" />
@@ -144,3 +166,9 @@ function toggleSys() {
     </nav>
   </aside>
 </template>
+
+<style scoped>
+.fade-enter-active { transition: opacity 0.2s ease; }
+.fade-leave-active { transition: opacity 0.15s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+</style>

@@ -141,7 +141,7 @@ const statusLabel = {
       </div>
     </div>
 
-    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Left: Input Area -->
       <div>
         <label class="block text-sm text-gray-400 mb-2">
@@ -150,7 +150,7 @@ const statusLabel = {
         </label>
         <textarea
           v-model="pasteText"
-          class="w-full h-96 px-4 py-3 bg-dark-input border border-border-inner rounded-lg text-gray-200 text-sm
+          class="w-full h-48 md:h-96 px-4 py-3 bg-dark-input border border-border-inner rounded-lg text-gray-200 text-sm
                  focus:outline-none focus:border-gold/50 placeholder-gray-600 resize-none font-mono"
           placeholder="从闲鱼鱼小铺复制订单文本，粘贴到这里..."
         ></textarea>

@@ -35,15 +35,15 @@ const filters = ref({
 const totalPages = computed(() => Math.max(1, Math.ceil(totalOrders.value / pageSize.value)))
 
 const columns = [
-  { key: 'order_no', label: '订单编号', sortable: true },
-  { key: 'xianyu_order_id', label: '闲鱼订单号' },
-  { key: 'status', label: '状态' },
-  { key: 'buyer_nickname', label: '买家' },
-  { key: 'total_amount', label: '原价' },
-  { key: 'actual_amount', label: '实付' },
-  { key: 'source', label: '来源' },
-  { key: 'order_time', label: '下单时间', sortable: true },
-  { key: 'completed_time', label: '完成时间' },
+  { key: 'order_no', label: '订单编号', sortable: true, mobileLabel: '编号' },
+  { key: 'xianyu_order_id', label: '闲鱼订单号', mobileHidden: true },
+  { key: 'status', label: '状态', mobileLabel: '状态' },
+  { key: 'buyer_nickname', label: '买家', mobileLabel: '买家' },
+  { key: 'total_amount', label: '原价', mobileHidden: true },
+  { key: 'actual_amount', label: '实付', mobileLabel: '金额' },
+  { key: 'source', label: '来源', mobileHidden: true },
+  { key: 'order_time', label: '下单时间', sortable: true, mobileLabel: '时间' },
+  { key: 'completed_time', label: '完成时间', mobileHidden: true },
 ]
 
 const orderActions = [
@@ -326,12 +326,12 @@ onMounted(fetchAll)
 <template>
   <div>
     <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
       <div>
         <h2 class="text-2xl font-serif text-gold-title">订单管理</h2>
         <p class="text-sm text-gold-muted mt-1">管理订单、粘贴导入、跟踪发货状态</p>
       </div>
-      <div class="flex gap-2">
+      <div class="flex flex-wrap gap-2">
         <button
           class="flex items-center gap-2 px-4 py-2 bg-gold/20 text-gold border border-gold/30 rounded-lg
                  hover:bg-gold/30 transition-colors text-sm"
@@ -360,10 +360,10 @@ onMounted(fetchAll)
     </div>
 
     <!-- Filter Bar -->
-    <div class="flex flex-wrap items-center gap-2 mb-4">
+    <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 mb-4">
       <select
         v-model="filters.status"
-        class="px-3 py-1.5 bg-dark-card border border-border-inner rounded-md text-sm text-gray-200
+        class="w-full sm:w-auto px-3 py-1.5 bg-dark-card border border-border-inner rounded-md text-sm text-gray-200
                focus:outline-none focus:border-gold/50"
         @change="applyFilters"
       >
@@ -373,34 +373,36 @@ onMounted(fetchAll)
         v-model="filters.xianyu_order_id"
         type="text"
         placeholder="闲鱼订单号"
-        class="w-40 px-3 py-1.5 bg-dark-card border border-border-inner rounded-md text-sm text-gray-200
-               focus:outline-none focus:border-gold/50 placeholder-gray-600"
+        class="w-full sm:w-40 px-3 py-1.5 bg-dark-card border border-border-inner rounded-md text-sm text-gray-200
+                focus:outline-none focus:border-gold/50 placeholder-gray-600"
         @keyup.enter="applyFilters"
       />
       <select
         v-model="filters.product_id"
-        class="px-3 py-1.5 bg-dark-card border border-border-inner rounded-md text-sm text-gray-200
+        class="w-full sm:w-auto px-3 py-1.5 bg-dark-card border border-border-inner rounded-md text-sm text-gray-200
                focus:outline-none focus:border-gold/50"
         @change="applyFilters"
       >
         <option value="">全部商品</option>
         <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }}</option>
       </select>
-      <input
-        v-model="filters.date_from"
-        type="date"
-        class="w-36 px-3 py-1.5 bg-dark-card border border-border-inner rounded-md text-sm text-gray-200
-               focus:outline-none focus:border-gold/50"
-        @change="applyFilters"
-      />
-      <span class="text-gray-500 text-xs">至</span>
-      <input
-        v-model="filters.date_to"
-        type="date"
-        class="w-36 px-3 py-1.5 bg-dark-card border border-border-inner rounded-md text-sm text-gray-200
-               focus:outline-none focus:border-gold/50"
-        @change="applyFilters"
-      />
+      <div class="contents sm:contents">
+        <input
+          v-model="filters.date_from"
+          type="date"
+          class="w-full sm:w-36 px-3 py-1.5 bg-dark-card border border-border-inner rounded-md text-sm text-gray-200
+                 focus:outline-none focus:border-gold/50"
+          @change="applyFilters"
+        />
+        <span class="hidden sm:inline text-gray-500 text-xs">至</span>
+        <input
+          v-model="filters.date_to"
+          type="date"
+          class="w-full sm:w-36 px-3 py-1.5 bg-dark-card border border-border-inner rounded-md text-sm text-gray-200
+                 focus:outline-none focus:border-gold/50"
+          @change="applyFilters"
+        />
+      </div>
       <button
         class="px-3 py-1.5 text-sm text-gray-400 hover:text-gray-200 border border-border-inner rounded-md
                hover:bg-dark-card transition-colors"
@@ -490,7 +492,7 @@ onMounted(fetchAll)
 
           <form @submit.prevent="handleSubmit" class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             <!-- Row 1: Order Time + Buyer + Xianyu ID -->
-            <div class="grid grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label class="block text-sm text-gray-400 mb-1">下单时间</label>
                 <input v-model="orderForm.order_time" type="datetime-local" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" />
@@ -518,7 +520,7 @@ onMounted(fetchAll)
               </div>
               <div v-for="(item, idx) in orderForm.items" :key="idx" class="flex items-start gap-2 mb-2 p-3 bg-dark-input rounded-md border border-border-inner">
                 <div class="flex-1">
-                  <div class="grid grid-cols-5 gap-2">
+                  <div class="grid grid-cols-1 sm:grid-cols-5 gap-2">
                     <div class="col-span-2">
                       <label class="text-xs text-gray-500">商品</label>
                       <select v-model.number="item.product_id" class="w-full px-2 py-1.5 bg-dark-card border border-border-inner rounded text-sm text-gray-200 focus:outline-none focus:border-gold/50" @change="onItemProductChange(idx)">
@@ -549,7 +551,7 @@ onMounted(fetchAll)
             </div>
 
             <!-- Amounts: read-only total + editable actual -->
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm text-gray-400 mb-1">原价总额（自动计算）</label>
                 <div class="w-full px-3 py-2 bg-dark-input/30 border border-border-inner/50 rounded-md text-gray-500 text-sm cursor-default">
@@ -563,7 +565,7 @@ onMounted(fetchAll)
             </div>
 
             <!-- Fees -->
-            <div class="grid grid-cols-4 gap-4">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div>
                 <label class="block text-sm text-gray-400 mb-1">运费</label>
                 <input v-model.number="orderForm.shipping_fee" type="number" step="0.01" min="0" class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" />

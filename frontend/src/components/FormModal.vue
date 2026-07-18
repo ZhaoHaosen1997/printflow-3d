@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import { X } from '@lucide/vue'
+import { useBreakpoint } from '../composables/useBreakpoint'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -12,6 +13,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'submit'])
+const { isMobile } = useBreakpoint()
 
 const form = ref({})
 
@@ -51,18 +53,26 @@ function removeArrayItem(field, index) {
   <Teleport to="body">
     <div
       v-if="visible"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      @mousedown.self="emit('close')"
+      class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+      :class="isMobile ? 'flex flex-col' : 'flex items-center justify-center'"
+      @click.self="emit('close')"
     >
-      <div :class="['bg-dark-card border border-border-main rounded-lg shadow-2xl w-full mx-4', width]">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-border-inner">
+      <div
+        :class="[
+          'bg-dark-card border border-border-main shadow-2xl w-full',
+          isMobile
+            ? 'flex flex-col h-full rounded-none border-0'
+            : 'rounded-lg mx-4 ' + width
+        ]"
+      >
+        <div class="flex items-center justify-between px-4 md:px-6 py-4 border-b border-border-inner flex-shrink-0">
           <h3 class="text-lg font-serif text-gold-title">{{ title }}</h3>
           <button class="text-gray-500 hover:text-gray-300" @click="emit('close')">
             <X class="w-5 h-5" />
           </button>
         </div>
 
-        <form @submit.prevent="onSubmit" class="px-6 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
+        <form @submit.prevent="onSubmit" class="px-4 md:px-6 py-4 space-y-4 overflow-y-auto" :class="isMobile ? 'flex-1' : 'max-h-[70vh]'">
           <div v-for="field in fields" :key="field.name" v-show="isVisible(field)">
             <label class="block text-sm text-gray-400 mb-1">
               {{ field.label }}
@@ -135,7 +145,7 @@ function removeArrayItem(field, index) {
           </div>
         </form>
 
-        <div class="flex justify-end gap-3 px-6 py-4 border-t border-border-inner">
+        <div class="flex justify-end gap-3 px-4 md:px-6 py-4 border-t border-border-inner flex-shrink-0">
           <button
             class="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 hover:bg-dark-input rounded-md transition-colors"
             @click="emit('close')"

@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { TrendingUp, DollarSign, ShoppingCart, Users, Receipt } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
+import { useBreakpoint } from '../composables/useBreakpoint'
 import { Bar, Doughnut } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -13,6 +14,7 @@ import {
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, Filler, ArcElement, DoughnutController)
 
 const { get } = useApi()
+const { isMobile } = useBreakpoint()
 
 const year = ref(new Date().getFullYear())
 const dateFrom = ref('')
@@ -25,7 +27,16 @@ const products = ref([])
 const loading = ref(false)
 const cardHovered = ref(false)
 const popoverHovered = ref(false)
-const showCostPopover = computed(() => cardHovered.value || popoverHovered.value)
+const costPopoverOpen = ref(false)
+
+const showCostPopover = computed(() => {
+  if (isMobile.value) return costPopoverOpen.value
+  return cardHovered.value || popoverHovered.value
+})
+
+function toggleCostPopover() {
+  if (isMobile.value) costPopoverOpen.value = !costPopoverOpen.value
+}
 
 const totalCost = computed(() => {
   if (!overview.value) return 0
@@ -202,7 +213,7 @@ onMounted(fetchAll)
     </div>
 
     <!-- Date filter -->
-    <div class="flex items-center gap-3 mb-6">
+    <div class="flex flex-wrap items-center gap-2 md:gap-3 mb-6">
       <input
         v-model="dateFrom"
         type="date"
@@ -247,6 +258,7 @@ onMounted(fetchAll)
         class="bg-dark-card border border-border-inner rounded-lg p-4 relative cursor-default overflow-visible"
         @mouseenter="cardHovered = true"
         @mouseleave="cardHovered = false"
+        @click="toggleCostPopover"
       >
         <div class="flex items-center gap-2 text-gray-500 text-xs mb-2">
           <Receipt class="w-3.5 h-3.5" />
@@ -293,9 +305,9 @@ onMounted(fetchAll)
     </div>
 
     <!-- Monthly Chart -->
-    <div class="bg-dark-card border border-border-inner rounded-lg p-6 mb-6">
+    <div class="bg-dark-card border border-border-inner rounded-lg p-4 md:p-6 mb-6">
       <h3 class="text-sm font-medium text-gray-300 mb-4">{{ year }}年 月度销售趋势</h3>
-      <div class="h-72">
+      <div class="h-56 md:h-72">
         <Bar v-if="monthly.length" :data="chartData" :options="chartOptions" />
         <div v-else class="flex items-center justify-center h-full text-gray-500 text-sm">
           暂无数据
@@ -305,7 +317,7 @@ onMounted(fetchAll)
 
     <!-- Product Ranking -->
     <div class="bg-dark-card border border-border-inner rounded-lg">
-      <div class="flex items-center justify-between px-6 py-4 border-b border-border-inner">
+      <div class="flex items-center justify-between px-4 md:px-6 py-4 border-b border-border-inner">
         <h3 class="text-sm font-medium text-gray-300">商品销售排行</h3>
         <select
           v-model="productSort"
@@ -317,7 +329,8 @@ onMounted(fetchAll)
           <option value="revenue">按销售额</option>
         </select>
       </div>
-      <div class="overflow-x-auto">
+      <!-- Desktop table -->
+      <div v-if="!isMobile" class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-border-inner/50">
@@ -356,6 +369,29 @@ onMounted(fetchAll)
             </tr>
           </tbody>
         </table>
+      </div>
+      <!-- Mobile card list -->
+      <div v-else>
+        <div v-if="loading" class="px-4 py-12 text-center text-gray-500 text-sm">加载中...</div>
+        <div v-else-if="products.length === 0" class="px-4 py-12 text-center text-gray-500 text-sm">暂无销售数据</div>
+        <div
+          v-for="(p, idx) in products"
+          :key="p.product_id"
+          class="px-4 py-3 border-b border-border-inner/30"
+        >
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-gray-200">{{ p.product_name }}</span>
+            <span class="text-sm font-medium" :class="Number(p.profit) >= 0 ? 'text-green-400' : 'text-red-400'">
+              {{ formatCurrency(p.profit) }}
+            </span>
+          </div>
+          <div class="flex gap-3 mt-1 text-xs text-gray-500">
+            <span>{{ categoryLabel(p.category) }}</span>
+            <span>销量 {{ p.quantity }}</span>
+            <span>收入 {{ formatCurrency(p.revenue) }}</span>
+            <span>成本 {{ formatCurrency(p.material_cost) }}</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>

@@ -36,13 +36,13 @@ const statusTabs = [
 ]
 
 const columns = [
-  { key: 'task_no', label: '任务编号', sortable: true },
-  { key: 'product_name', label: '商品', sortable: true },
-  { key: 'recipe_name', label: '配方' },
-  { key: 'output_qty', label: '产出数量' },
-  { key: 'status', label: '状态' },
-  { key: 'print_time_min', label: '预估时长' },
-  { key: 'created_at', label: '创建时间', sortable: true },
+  { key: 'task_no', label: '任务编号', sortable: true, mobileLabel: '编号' },
+  { key: 'product_name', label: '商品', sortable: true, mobileLabel: '商品' },
+  { key: 'recipe_name', label: '配方', mobileHidden: true },
+  { key: 'output_qty', label: '产出数量', mobileLabel: '产出' },
+  { key: 'status', label: '状态', mobileLabel: '状态' },
+  { key: 'print_time_min', label: '预估时长', mobileHidden: true },
+  { key: 'created_at', label: '创建时间', sortable: true, mobileLabel: '创建' },
 ]
 
 const actions = [

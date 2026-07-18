@@ -126,33 +126,36 @@ onMounted(fetchSummary)
 
     <!-- Recent Orders -->
     <div v-if="data" class="bg-dark-card border border-border-inner rounded-lg mb-6">
-      <div class="flex items-center justify-between px-6 py-4 border-b border-border-inner">
+      <div class="flex items-center justify-between px-4 md:px-6 py-4 border-b border-border-inner">
         <h3 class="text-sm font-medium text-gray-300">最近订单</h3>
         <button
           class="text-xs text-gold-muted hover:text-gold transition-colors"
           @click="goTo('/orders')"
         >查看全部</button>
       </div>
-      <div v-if="data.recent_orders.length === 0" class="px-6 py-8 text-center text-gray-500 text-sm">
+      <div v-if="data.recent_orders.length === 0" class="px-4 md:px-6 py-8 text-center text-gray-500 text-sm">
         暂无订单
       </div>
       <div v-else>
         <div
           v-for="o in data.recent_orders"
           :key="o.id"
-          class="flex items-center justify-between px-6 py-3 border-b border-border-inner/30 last:border-b-0
+          class="px-4 md:px-6 py-3 border-b border-border-inner/30 last:border-b-0
                  hover:bg-dark-input/30 transition-colors cursor-pointer"
           @click="goTo(`/orders?status=${o.status}`)"
         >
-          <div class="flex items-center gap-4 min-w-0">
+          <div class="flex items-center justify-between gap-2">
             <div class="text-sm text-gray-200 font-mono whitespace-nowrap">{{ o.order_no }}</div>
-            <div class="text-xs text-gray-400 whitespace-nowrap">{{ o.buyer_nickname || '-' }}</div>
-            <div class="text-xs text-gray-500 truncate max-w-[200px]">{{ o.item_summary }}</div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <div class="text-sm text-gold">{{ formatCurrency(o.actual_amount) }}</div>
+              <StatusBadge :status="o.status" size="sm" />
+            </div>
           </div>
-          <div class="flex items-center gap-3 flex-shrink-0">
-            <div class="text-sm text-gold">{{ formatCurrency(o.actual_amount) }}</div>
-            <StatusBadge :status="o.status" size="sm" />
-            <div class="text-xs text-gray-500 w-8 text-right">{{ formatDate(o.order_time) }}</div>
+          <div class="flex items-center gap-2 mt-1 text-xs">
+            <span class="text-gray-400">{{ o.buyer_nickname || '-' }}</span>
+            <span class="text-gray-600">·</span>
+            <span class="text-gray-500 truncate">{{ o.item_summary }}</span>
+            <span class="text-gray-600 ml-auto flex-shrink-0">{{ formatDate(o.order_time) }}</span>
           </div>
         </div>
       </div>
@@ -160,14 +163,14 @@ onMounted(fetchSummary)
 
     <!-- Print Task Stats -->
     <div v-if="data" class="bg-dark-card border border-border-inner rounded-lg">
-      <div class="flex items-center justify-between px-6 py-4 border-b border-border-inner">
+      <div class="flex items-center justify-between px-4 md:px-6 py-4 border-b border-border-inner">
         <h3 class="text-sm font-medium text-gray-300">打印任务概览</h3>
         <button
           class="text-xs text-gold-muted hover:text-gold transition-colors"
           @click="goTo('/print-tasks')"
         >查看全部</button>
       </div>
-      <div class="grid grid-cols-4 gap-4 p-6">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 md:p-6">
         <div class="text-center">
           <div class="text-2xl font-bold text-yellow-400">{{ data.print_task_stats.pending }}</div>
           <div class="text-xs text-gray-500 mt-1">待打印</div>

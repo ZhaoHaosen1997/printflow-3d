@@ -34,12 +34,12 @@ const editForm = ref({
 })
 
 const columns = [
-  { key: 'nickname', label: '买家昵称', sortable: true },
-  { key: 'province', label: '省份' },
-  { key: 'total_orders', label: '累计订单' },
-  { key: 'total_amount', label: '累计消费' },
-  { key: 'tags', label: '标签' },
-  { key: 'last_order_time', label: '最近下单', sortable: true },
+  { key: 'nickname', label: '买家昵称', sortable: true, mobileLabel: '昵称' },
+  { key: 'province', label: '省份', mobileHidden: true },
+  { key: 'total_orders', label: '累计订单', mobileLabel: '订单' },
+  { key: 'total_amount', label: '累计消费', mobileLabel: '消费' },
+  { key: 'tags', label: '标签', mobileHidden: true },
+  { key: 'last_order_time', label: '最近下单', sortable: true, mobileLabel: '最近' },
 ]
 
 const statusConfig = {
@@ -222,11 +222,11 @@ onMounted(fetchBuyers)
       <div
         v-if="detailVisible"
         class="fixed inset-0 z-50 flex justify-end"
-        @mousedown.self="detailVisible = false"
+        @click.self="detailVisible = false"
       >
         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
-        <div class="relative w-full max-w-lg bg-dark-card border-l border-border-main shadow-2xl overflow-y-auto">
-          <div class="sticky top-0 bg-dark-card border-b border-border-inner px-6 py-4 flex items-center justify-between z-10">
+        <div class="relative w-full md:max-w-lg bg-dark-card md:border-l border-border-main shadow-2xl overflow-y-auto">
+          <div class="sticky top-0 bg-dark-card border-b border-border-inner px-4 md:px-6 py-4 flex items-center justify-between z-10">
             <h3 class="text-lg font-serif text-gold-title">买家详情</h3>
             <button class="text-gray-500 hover:text-gray-300" @click="detailVisible = false">
               <X class="w-5 h-5" />

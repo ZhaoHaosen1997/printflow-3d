@@ -31,11 +31,11 @@ const stats = computed(() => {
 })
 
 const columns = [
-  { key: 'product_name', label: '商品名称', sortable: true },
-  { key: 'product_category', label: '分类', sortable: true },
-  { key: 'quantity', label: '当前库存' },
-  { key: 'warning_threshold', label: '预警阈值' },
-  { key: 'stock_status', label: '状态' },
+  { key: 'product_name', label: '商品名称', sortable: true, mobileLabel: '商品' },
+  { key: 'product_category', label: '分类', sortable: true, mobileHidden: true },
+  { key: 'quantity', label: '当前库存', mobileLabel: '库存' },
+  { key: 'warning_threshold', label: '预警阈值', mobileLabel: '阈值' },
+  { key: 'stock_status', label: '状态', mobileLabel: '状态' },
 ]
 
 const actions = [

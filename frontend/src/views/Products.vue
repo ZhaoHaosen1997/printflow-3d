@@ -35,11 +35,11 @@ const filteredProducts = computed(() => {
 })
 
 const columns = [
-  { key: 'name', label: '商品名称', sortable: true },
-  { key: 'category', label: '分类' },
-  { key: 'price_single', label: '单品售价' },
-  { key: 'price_bundle', label: '合集价' },
-  { key: 'material_cost', label: '材料成本' },
+  { key: 'name', label: '商品名称', sortable: true, mobileLabel: '名称' },
+  { key: 'category', label: '分类', mobileHidden: true },
+  { key: 'price_single', label: '单品售价', mobileLabel: '售价' },
+  { key: 'price_bundle', label: '合集价', mobileHidden: true },
+  { key: 'material_cost', label: '材料成本', mobileLabel: '成本' },
 ]
 
 const productActions = [
@@ -480,7 +480,7 @@ onMounted(fetchAll)
     </div>
 
     <!-- Category tabs -->
-    <div class="flex gap-2 mb-4">
+    <div class="flex gap-2 mb-4 overflow-x-auto pb-1">
       <button
         v-for="cat in categories"
         :key="cat.value"
@@ -604,7 +604,7 @@ onMounted(fetchAll)
           </div>
 
           <form @submit.prevent="handleProductSubmit" class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm text-gray-400 mb-1">名称 <span class="text-red-400">*</span></label>
                 <input v-model="productForm.name" type="text" required class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" />
@@ -620,7 +620,7 @@ onMounted(fetchAll)
               </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm text-gray-400 mb-1">单品售价 <span class="text-red-400">*</span></label>
                 <input v-model.number="productForm.price_single" type="number" step="0.01" min="0" required class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" />
@@ -801,7 +801,7 @@ onMounted(fetchAll)
               :class="r.is_default ? 'border-gold/40 shadow-[inset_0_0_0_1px_rgba(212,175,55,0.15)]' : 'border-border-inner'"
             >
               <div class="flex-1">
-                <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 flex-wrap">
                   <span class="text-sm font-medium" :class="r.is_default ? 'text-gold' : 'text-gray-200'">{{ r.name }}</span>
                   <span
                     v-if="r.is_default"
@@ -882,7 +882,7 @@ onMounted(fetchAll)
             </div>
 
             <!-- output_qty + print_time_min -->
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm text-gray-400 mb-1">单次产出数量 <span class="text-red-400">*</span></label>
                 <input
