@@ -439,6 +439,22 @@ class ParseRequest(BaseModel):
     text: str
 
 
+class StructuredParseItem(BaseModel):
+    product_name: str
+    total_amount: Decimal = Decimal("0")
+    actual_amount: Decimal = Decimal("0")
+    quantity: int = 1
+
+
+class StructuredParseRequest(BaseModel):
+    xianyu_order_id: Optional[str] = None
+    status: str = "pending_ship"
+    order_time: Optional[datetime] = None
+    buyer_nickname: Optional[str] = None
+    buyer_province: Optional[str] = None
+    items: List[StructuredParseItem] = []
+
+
 class ParseResponse(BaseModel):
     orders: List[ParsedOrder] = []
     errors: List[str] = []

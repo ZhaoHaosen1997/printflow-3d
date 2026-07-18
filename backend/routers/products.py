@@ -3,6 +3,7 @@ import uuid
 from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import or_
 from backend.database import get_db
 from backend.models import Product, PrintRecipe, PrintRecipeFilament, Inventory, Game, Category, product_games
 from backend.schemas import (
@@ -27,23 +28,33 @@ def list_products(
     category: str | None = None,
     category_id: int | None = None,
     game_id: int | None = None,
+    q: str | None = None,
     status: str = "active",
     db: Session = Depends(get_db),
 ):
-    q = db.query(Product).options(
+    query = db.query(Product).options(
         selectinload(Product.recipes).selectinload(PrintRecipe.recipe_filaments),
         selectinload(Product.games),
         selectinload(Product.category_obj),
     )
     if category:
-        q = q.filter(Product.category == category)
+        query = query.filter(Product.category == category)
     if category_id:
-        q = q.filter(Product.category_id == category_id)
+        query = query.filter(Product.category_id == category_id)
     if game_id:
-        q = q.filter(Product.games.any(Game.id == game_id))
+        query = query.filter(Product.games.any(Game.id == game_id))
+    if q:
+        search_term = f"%{q}%"
+        query = query.filter(
+            or_(
+                Product.name.ilike(search_term),
+                Product.xianyu_item_id.ilike(search_term),
+            )
+        )
     if status != "all":
-        q = q.filter(Product.status == status)
-    return q.order_by(Product.sort_order, Product.id).all()
+        query = query.filter(Product.status == status)
+    products = query.order_by(Product.sort_order, Product.id).all()
+    return products
 
 
 @router.put("/products/sort-order", response_model=MessageResponse)

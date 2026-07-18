@@ -12,6 +12,7 @@ from backend.schemas import (
     PaginatedOrdersResponse,
     OrderItemCreate, OrderItemResponse,
     ParseRequest, ParseResponse, ParsedOrder, ParsedOrderItem,
+    StructuredParseRequest, StructuredParseItem,
     MessageResponse,
 )
 from backend.services.parser_service import parse_order_text, match_products
@@ -548,6 +549,45 @@ def delete_order(order_id: int, db: Session = Depends(get_db)):
 def parse_order(data: ParseRequest, db: Session = Depends(get_db)):
     """Parse pasted 闲鱼 order text and match products."""
     raw_orders = parse_order_text(data.text)
+    matched = match_products(db, raw_orders)
+
+    results = []
+    errors = []
+    for mo in matched:
+        try:
+            po = ParsedOrder(**mo)
+            results.append(po)
+        except Exception as e:
+            errors.append(f"解析失败: {e}")
+
+    return ParseResponse(orders=results, errors=errors)
+
+
+@router.post("/parse-structured", response_model=ParseResponse)
+def parse_structured(data: StructuredParseRequest, db: Session = Depends(get_db)):
+    """Parse structured order data (from Vision/AI) and match products.
+
+    Skips text assembly — directly matches products from JSON fields.
+    Returns the same ParseResponse format as /parse.
+    """
+    raw_orders = []
+    for item in data.items:
+        raw_orders.append({
+            "xianyu_order_id": data.xianyu_order_id,
+            "status": data.status,
+            "order_time": data.order_time,
+            "product_name": item.product_name,
+            "total_amount": float(item.total_amount),
+            "actual_amount": float(item.actual_amount),
+            "quantity": item.quantity,
+            "buyer_nickname": data.buyer_nickname,
+            "buyer_name": None,
+            "buyer_phone": None,
+            "buyer_address": None,
+            "buyer_province": data.buyer_province,
+            "shipping_free": True,
+        })
+
     matched = match_products(db, raw_orders)
 
     results = []
