@@ -7,6 +7,70 @@
 
 ---
 
+## 修复进度复查（2026-08-01 · commit ab54279 / v1.14.0）
+
+原报告 43 项问题经逐条核实当前代码后：**已修复 16 项、部分修复 3 项、仍存在 23 项、判定有误 1 项**。
+
+| 分类 | 已修复 | 部分修复 | 仍存在 | 判定有误 |
+|------|--------|---------|--------|---------|
+| 严重 C1-C6 | C1,C2,C3,C5,C6 | — | — | C4 |
+| 高危 H1-H12 | H3,H6,H11 | H9 | H1,H2,H4,H5,H7,H8,H10,H12 | — |
+| 中危 M1-M14 | M2,M4,M7,M10 | M1,M11 | M3,M5,M6,M8,M9,M12,M13,M14 | — |
+| 低危 L1-L11 | L4,L5,L6,L8 | — | L1,L2,L3,L7,L9,L10,L11 | — |
+
+**已修复项**（主体为 v1.7.3「代码质量全面修复」，含销售导出迁移）：
+- C1 订单更新库存联动、C2 useApi 并发计数器、C3 del() 支持 body、C5 chart 依赖安装、C6 导出利润逐行计算
+- H3 三端点利润公式统一、H6 `_ensure_inventory` 提取至 services、H11 示例文本 PII 清理
+- M2 9 处高频列索引、M4 `sales_overview` 改 SQL 聚合（`sales_export` 已移除，CSV 导出迁至 `orders/export`）、M7 导出错误处理、M10 PrintTasks 错误反馈
+- L4 `recalcTotal` 保留手动 0、L5 `editOrder` 改 async/await、L6 404 兜底路由、L8 滚动重置
+- 注：v1.7.3 提交说明中「M14：editOrder 改 async/await」实为修复 L5，编号引用有误
+
+**C4 判定有误**：原报告称「Vue 3 无法检测 Set 变化」，但 Vue 3 通过 collectionHandlers 原生支持 Set 响应式，`savedIds.value.add()` 实际可用，功能正常，无需修复。
+
+**当前仍存在的问题（按优先级建议修复顺序）：**
+
+### P0 — 业务正确性
+
+| 项 | 问题 | 位置 |
+|----|------|------|
+| H1 | DELETE 订单实为「取消」且写入 `completed_time`，语义混乱 | `backend/routers/orders.py:522-542` |
+| H4 | 多商品订单公益费率只取首个商品 | `backend/routers/orders.py:117-122` |
+| H5 | 空字符串买家昵称会断开订单-买家关联 | `backend/routers/orders.py:44,453` |
+| H2 | `_fill_order_defaults` 就地修改 Pydantic 请求对象 | `backend/routers/orders.py:89-125` |
+
+### P1 — 性能 / 安全
+
+| 项 | 问题 | 位置 |
+|----|------|------|
+| M3 | `_sync_buyer_stats` 全量加载订单后 Python 聚合 | `backend/routers/orders.py:57-75` |
+| M5 | 日志端点全量读文件入内存再分页 | `backend/routers/logs.py:34-52` |
+| H8 | `_add_column_safe` f-string 拼接 SQL | `backend/database.py:138-152` |
+| H7 | 状态常量散落 5 处未统一为枚举 | models / database / parser_service / orders |
+| M1 | 残留 2 处 N+1 查询 | 见上文 M1 小节 |
+| M11 | 残留 2 处空 catch 静默吞错 | 见上文 M11 小节 |
+| L2 | `datetime.utcnow()` 30 处（3.12+ 弃用） | models.py 等 4 文件 |
+| L1 | `@app.on_event("startup")` 弃用 | `backend/main.py:64` |
+| L3 | 无任何认证/鉴权（含 admin 永久删除端点） | 全部路由 |
+
+### P2 — 前端体验 / 代码质量
+
+| 项 | 问题 | 位置 |
+|----|------|------|
+| H10 | LogViewer 硬编码浅色主题，与深色主题冲突 | `frontend/src/views/LogViewer.vue` |
+| H12 | 弹窗在 9+ 视图重复，FormModal 从未使用 | 各 views |
+| M13 | Sales chart 颜色硬编码，不随主题 | `frontend/src/views/Sales.vue` |
+| M14 | theme.css `!important` 覆盖 `text-gray-*` | `frontend/src/themes/theme.css` |
+| M6 | StatusBadge `archived` 键重复定义 | `frontend/src/components/StatusBadge.vue:11,19` |
+| M8 | useTheme 每次调用创建未清理的 watchEffect | `frontend/src/composables/useTheme.js` |
+| M9 | useApi 无 AbortController | `frontend/src/composables/useApi.js` |
+| M12 | 分页实现不统一 | Orders / PrintTasks / Buyers |
+| L7 | 骨架屏用 `Math.random()` 重渲染闪烁 | `frontend/src/components/DataTable.vue:82` |
+| L9 | 无 `app.config.errorHandler` | `frontend/src/main.js` |
+| L10 | FormModal.vue 定义但从未使用 | `frontend/src/components/FormModal.vue` |
+| L11 | `.btn-danger` 等按钮类在 scoped style 重复 | FormModal / Colors / Products / DataTable |
+
+---
+
 ## 一、严重问题（CRITICAL）—— 必须立即修复
 
 ### C1. 订单更新时库存未联动
@@ -453,29 +517,12 @@ GET 请求调用 `_ensure_inventory` 可能创建新记录并 `commit()`，读�
 
 ---
 
-## 六、修复优先级路线图
+## 六、修复进度路线图（2026-08-01 更新）
 
-```
-第一批（立即）：C1-C6 + H11
-  ├── 订单更新库存联动（C1）
-  ├── useApi loading 计数器 + del() body 支持（C2, C3）
-  ├── Set 响应性修复（C4）
-  ├── npm install chart.js vue-chartjs（C5）
-  ├── 导出利润计算修正（C6）
-  └── 替换示例文本 PII（H11）
+原「第一批 / 第二批 / 第三批」计划已随 v1.7.3 完成大部分修复。当前剩余问题及优先级见文首「修复进度复查」：
 
-第二批（本周）：H1-H5, H9, M1-M2
-  ├── DELETE→取消语义修正（H1）
-  ├── 利润计算统一（H3）
-  ├── 公益费率多商品处理（H4）
-  ├── 空字符串买家保护（H5）
-  ├── N+1 查询批量优化（M1）
-  └── 补充数据库索引（M2）
+- **P0 业务正确性**：H1（DELETE 语义）、H4（公益费率）、H5（空昵称）、H2（就地改 Pydantic）
+- **P1 性能/安全**：M3、M5、H8、H7、M1/M11 残留、L2、L1、L3
+- **P2 前端体验/代码质量**：H10、H12、M13、M14、M6、M8、M9、M12、L7、L9、L10、L11
 
-第三批（下周）：剩余 H 项 + M 项
-  └── DRY 统一、Modal 组件化、错误处理统一等
-```
-
----
-
-> 本报告由代码审查自动生成，建议按优先级逐批修复，每批修复后回归测试。
+> 本报告由代码审查自动生成，原问题清单保留供追溯，修复状态以文首复查表为准。
