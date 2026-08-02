@@ -159,7 +159,7 @@ onMounted(fetchFilaments)
 
           <form @submit.prevent="handleSubmit" class="px-6 py-4 space-y-4">
             <div>
-              <label class="block text-sm text-gray-400 mb-1">品牌 <span class="text-red-400">*</span></label>
+              <label class="block text-sm text-gray-400 mb-1">品牌 <span class="text-danger">*</span></label>
               <input
                 v-model="form.brand"
                 type="text" required placeholder="如 eSun, 三绿, Bambu"
@@ -169,7 +169,7 @@ onMounted(fetchFilaments)
             </div>
 
             <div class="relative">
-              <label class="block text-sm text-gray-400 mb-1">材料 <span class="text-red-400">*</span></label>
+              <label class="block text-sm text-gray-400 mb-1">材料 <span class="text-danger">*</span></label>
               <input
                 v-model="materialInput"
                 type="text" required placeholder="如 PLA, PETG, ABS..."
@@ -197,7 +197,7 @@ onMounted(fetchFilaments)
             </div>
 
             <div>
-              <label class="block text-sm text-gray-400 mb-1">每kg价格 (元) <span class="text-red-400">*</span></label>
+              <label class="block text-sm text-gray-400 mb-1">每kg价格 (元) <span class="text-danger">*</span></label>
               <input
                 v-model.number="form.price_per_kg"
                 type="number" step="0.01" min="0" required placeholder="如 60"

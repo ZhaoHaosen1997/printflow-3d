@@ -21,10 +21,10 @@ const editingBuyer = ref(null)
 const saving = ref(false)
 
 const tagOptions = [
-  { value: '老客户', label: '老客户', class: 'bg-blue-400/10 text-blue-400 border-blue-400/30' },
-  { value: '大户', label: '大户', class: 'bg-green-400/10 text-green-400 border-green-400/30' },
-  { value: '好评', label: '好评', class: 'bg-emerald-400/10 text-emerald-400 border-emerald-400/30' },
-  { value: '问题客户', label: '问题客户', class: 'bg-red-400/10 text-red-400 border-red-400/30' },
+  { value: '老客户', label: '老客户', class: 'bg-info/10 text-info border-info/30' },
+  { value: '大户', label: '大户', class: 'bg-success/10 text-success border-success/30' },
+  { value: '好评', label: '好评', class: 'bg-success/10 text-success border-success/30' },
+  { value: '问题客户', label: '问题客户', class: 'bg-danger/10 text-danger border-danger/30' },
 ]
 
 const editForm = ref({
@@ -43,11 +43,11 @@ const columns = [
 ]
 
 const statusConfig = {
-  pending_ship: { label: '待发货', class: 'bg-yellow-400/10 text-yellow-400 border-yellow-400/30' },
-  shipped: { label: '已发货', class: 'bg-blue-400/10 text-blue-400 border-blue-400/30' },
-  completed: { label: '交易成功', class: 'bg-green-400/10 text-green-400 border-green-400/30' },
+  pending_ship: { label: '待发货', class: 'bg-warning/10 text-warning border-warning/30' },
+  shipped: { label: '已发货', class: 'bg-info/10 text-info border-info/30' },
+  completed: { label: '交易成功', class: 'bg-success/10 text-success border-success/30' },
   cancelled: { label: '已取消', class: 'bg-gray-400/10 text-gray-400 border-gray-400/30' },
-  returned: { label: '退货', class: 'bg-red-400/10 text-red-400 border-red-400/30' },
+  returned: { label: '退货', class: 'bg-danger/10 text-danger border-danger/30' },
 }
 
 const actions = [

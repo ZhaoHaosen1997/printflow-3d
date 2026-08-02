@@ -26,16 +26,16 @@ const allCategories = ['API', 'BUSINESS', 'PARSER', 'DB', 'ERROR']
 
 const levelColors = {
   DEBUG: 'text-gray-400',
-  INFO: 'text-gray-700',
-  WARNING: 'text-amber-600',
-  ERROR: 'text-red-600',
+  INFO: 'text-gray-200',
+  WARNING: 'text-warning',
+  ERROR: 'text-danger',
 }
 
 const levelBg = {
-  DEBUG: 'bg-gray-50',
+  DEBUG: '',
   INFO: '',
-  WARNING: 'bg-amber-50',
-  ERROR: 'bg-red-50',
+  WARNING: 'bg-warning/10',
+  ERROR: 'bg-danger/10',
 }
 
 function toggle(arr, val) {
@@ -134,14 +134,14 @@ onUnmounted(() => {
       <div class="flex gap-2">
         <button
           class="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md border transition-colors"
-          :class="autoRefresh ? 'bg-green-50 text-green-600 border-green-300' : 'text-gray-500 border-gray-200 hover:text-gray-700 hover:bg-gray-50'"
+          :class="autoRefresh ? 'bg-success/10 text-success border-success/30' : 'text-gray-500 border-border-inner hover:text-gray-300 hover:bg-dark-input'"
           @click="toggleAutoRefresh"
         >
           <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': autoRefresh }" />
           {{ autoRefresh ? '自动刷新中' : '自动刷新' }}
         </button>
         <button
-          class="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 border border-gray-200 rounded-md hover:text-gray-700 hover:bg-gray-50 transition-colors"
+          class="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 border border-border-inner rounded-md hover:text-gray-300 hover:bg-dark-input transition-colors"
           @click="fetchLogs(true)"
         >
           <RefreshCw class="w-3.5 h-3.5" />
@@ -158,46 +158,46 @@ onUnmounted(() => {
           v-for="lv in allLevels" :key="lv"
           class="px-2 py-1 text-xs rounded border transition-colors"
           :class="has(filter.levels, lv)
-            ? { DEBUG: 'border-gray-300 bg-gray-100 text-gray-600', INFO: 'border-gray-300 bg-gray-100 text-gray-700', WARNING: 'border-amber-300 bg-amber-50 text-amber-700', ERROR: 'border-red-300 bg-red-50 text-red-700' }[lv]
-            : 'border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50'"
+            ? { DEBUG: 'border-border-main bg-dark-input text-gray-200', INFO: 'border-border-main bg-dark-input text-gray-200', WARNING: 'border-warning/40 bg-warning/10 text-warning', ERROR: 'border-danger/40 bg-danger/10 text-danger' }[lv]
+            : 'border-border-inner text-gray-500 hover:text-gray-300 hover:bg-dark-input'"
           @click="toggle(filter.levels, lv); applyFilters()"
         >{{ lv }}</button>
       </div>
-      <span class="text-gray-300">|</span>
+      <span class="text-gray-500">|</span>
       <!-- Category filter -->
       <div class="flex gap-1">
         <button
           v-for="cat in allCategories" :key="cat"
           class="px-2 py-1 text-xs rounded border transition-colors"
           :class="has(filter.categories, cat)
-            ? 'border-blue-300 bg-blue-50 text-blue-700'
-            : 'border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50'"
+            ? 'border-info/40 bg-info/10 text-info'
+            : 'border-border-inner text-gray-500 hover:text-gray-300 hover:bg-dark-input'"
           @click="toggle(filter.categories, cat); applyFilters()"
         >{{ cat }}</button>
       </div>
-      <span class="text-gray-300">|</span>
+      <span class="text-gray-500">|</span>
       <input
         v-model="filter.keyword"
         type="text"
         placeholder="关键词搜索..."
-        class="w-40 px-2 py-1 bg-white border border-gray-200 rounded text-xs text-gray-700 focus:outline-none focus:border-blue-400 placeholder-gray-400"
+        class="w-40 px-2 py-1 bg-dark-input border border-border-inner rounded text-xs text-gray-200 focus:outline-none focus:border-gold/50 placeholder-gray-500"
         @keyup.enter="applyFilters"
       />
       <input
         v-model="filter.date"
         type="date"
-        class="w-32 px-2 py-1 bg-white border border-gray-200 rounded text-xs text-gray-700 focus:outline-none focus:border-blue-400"
+        class="w-32 px-2 py-1 bg-dark-input border border-border-inner rounded text-xs text-gray-200 focus:outline-none focus:border-gold/50"
         @change="applyFilters"
       />
       <button
-        class="px-2 py-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+        class="px-2 py-1 text-xs text-gray-500 hover:text-gray-300 transition-colors"
         @click="clearFilters"
       ><X class="w-3 h-3" /></button>
     </div>
 
     <!-- Log List -->
-    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-      <div class="flex items-center px-4 py-2 border-b border-gray-100 bg-gray-50 text-gray-400 text-[11px] font-medium">
+    <div class="bg-dark-card border border-border-inner rounded-lg overflow-hidden">
+      <div class="flex items-center px-4 py-2 border-b border-border-inner bg-dark-input text-gray-400 text-[11px] font-medium">
         <span class="w-[200px] shrink-0">时间</span>
         <span class="w-20 shrink-0">级别</span>
         <span class="w-24 shrink-0">分类</span>
@@ -216,7 +216,7 @@ onUnmounted(() => {
         <div
           v-for="(entry, idx) in entries"
           :key="idx"
-          class="flex items-start px-4 py-0.5 border-b border-gray-50 hover:bg-gray-50/50 transition-colors"
+          class="flex items-start px-4 py-0.5 border-b border-border-inner/60 hover:bg-dark-input/50 transition-colors"
           :class="levelBg[entry.level]"
         >
           <span class="w-[200px] shrink-0 text-gray-400">{{ entry.time }}</span>
@@ -230,7 +230,7 @@ onUnmounted(() => {
     <!-- Load more -->
     <div v-if="hasMore && entries.length > 0" class="text-center mt-4">
       <button
-        class="px-4 py-2 text-sm text-gray-500 border border-gray-200 rounded-md hover:text-gray-700 hover:bg-gray-50 transition-colors"
+        class="px-4 py-2 text-sm text-gray-500 border border-border-inner rounded-md hover:text-gray-300 hover:bg-dark-input transition-colors"
         :disabled="loading"
         @click="loadMore"
       >

@@ -717,11 +717,11 @@ onMounted(fetchAll)
           <form @submit.prevent="handleProductSubmit" class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm text-gray-400 mb-1">名称 <span class="text-red-400">*</span></label>
+                <label class="block text-sm text-gray-400 mb-1">名称 <span class="text-danger">*</span></label>
                 <input v-model="productForm.name" type="text" required class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" />
               </div>
               <div>
-                <label class="block text-sm text-gray-400 mb-1">分类 <span class="text-red-400">*</span></label>
+                <label class="block text-sm text-gray-400 mb-1">分类 <span class="text-danger">*</span></label>
                 <select v-model="productForm.category_id" required class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50">
                   <option v-for="cat in categories.filter(c => c.status === 'active')" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
                 </select>
@@ -750,7 +750,7 @@ onMounted(fetchAll)
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm text-gray-400 mb-1">单品售价 <span class="text-red-400">*</span></label>
+                <label class="block text-sm text-gray-400 mb-1">单品售价 <span class="text-danger">*</span></label>
                 <input v-model.number="productForm.price_single" type="number" step="0.01" min="0" required class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" />
                 <p class="text-xs text-gray-600 mt-1">设为 0 表示不单卖（仅作为合集子商品）</p>
               </div>
@@ -784,7 +784,7 @@ onMounted(fetchAll)
                     <Upload class="w-4 h-4 mx-auto mb-0.5" />
                     <input type="file" accept="image/*" class="hidden" @change="handleImageUpload" />
                   </label>
-                  <button type="button" class="text-gray-200 hover:text-red-400 text-xs" @click="removeImage"><X class="w-4 h-4" /></button>
+                  <button type="button" class="text-gray-200 hover:text-danger text-xs" @click="removeImage"><X class="w-4 h-4" /></button>
                 </div>
               </div>
               <div v-else class="w-24 h-24 rounded-md border-2 border-dashed border-border-inner flex items-center justify-center cursor-pointer hover:border-gold/50 transition-colors" @click="$refs.imageInput?.click()">
@@ -961,7 +961,7 @@ onMounted(fetchAll)
                 >
                   设默认
                 </button>
-                <button class="px-2 py-1 text-xs text-red-500 hover:text-red-400" @click="deleteRecipe(r)">删除</button>
+                <button class="px-2 py-1 text-xs text-danger hover:text-danger" @click="deleteRecipe(r)">删除</button>
               </div>
             </div>
           </div>
@@ -1000,7 +1000,7 @@ onMounted(fetchAll)
           <form @submit.prevent="handleRecipeSubmit" class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             <!-- name -->
             <div>
-              <label class="block text-sm text-gray-400 mb-1">配方名称 <span class="text-red-400">*</span></label>
+              <label class="block text-sm text-gray-400 mb-1">配方名称 <span class="text-danger">*</span></label>
               <input
                 v-model="recipeForm.name"
                 type="text" required placeholder="如 标准打印-单件"
@@ -1012,7 +1012,7 @@ onMounted(fetchAll)
             <!-- output_qty + print_time_min -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm text-gray-400 mb-1">单次产出数量 <span class="text-red-400">*</span></label>
+                <label class="block text-sm text-gray-400 mb-1">单次产出数量 <span class="text-danger">*</span></label>
                 <input
                   v-model.number="recipeForm.output_qty"
                   type="number" required min="1"

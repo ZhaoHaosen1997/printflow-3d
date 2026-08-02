@@ -249,7 +249,7 @@ onMounted(fetchAll)
           <TrendingUp class="w-3.5 h-3.5" />
           总利润
         </div>
-        <div class="text-xl font-bold text-green-400">{{ formatCurrency(overview.total_profit) }}</div>
+        <div class="text-xl font-bold text-success">{{ formatCurrency(overview.total_profit) }}</div>
         <div class="text-xs text-gray-600 mt-1">
           利润率 {{ overview.total_revenue > 0 ? ((overview.total_profit / overview.total_revenue) * 100).toFixed(1) : 0 }}%
         </div>
@@ -264,7 +264,7 @@ onMounted(fetchAll)
           <Receipt class="w-3.5 h-3.5" />
           总成本
         </div>
-        <div class="text-xl font-bold text-red-400">{{ formatCurrency(totalCost) }}</div>
+        <div class="text-xl font-bold text-danger">{{ formatCurrency(totalCost) }}</div>
         <div class="text-xs text-gray-600 mt-1">
           占比 {{ overview.total_revenue > 0 ? ((totalCost / overview.total_revenue) * 100).toFixed(1) : 0 }}%
         </div>
@@ -297,7 +297,7 @@ onMounted(fetchAll)
           <Users class="w-3.5 h-3.5" />
           累计砍价
         </div>
-        <div class="text-xl font-bold text-yellow-400">{{ formatCurrency(overview.total_discount) }}</div>
+        <div class="text-xl font-bold text-warning">{{ formatCurrency(overview.total_discount) }}</div>
         <div class="text-xs text-gray-600 mt-1">
           服务费 {{ formatCurrency(overview.total_service_fee) }}
         </div>
@@ -362,7 +362,7 @@ onMounted(fetchAll)
               <td class="px-4 py-3 text-right text-gray-200">{{ formatCurrency(p.revenue) }}</td>
               <td class="px-4 py-3 text-right text-gray-400">{{ formatCurrency(p.material_cost) }}</td>
               <td class="px-4 py-3 text-right">
-                <span :class="Number(p.profit) >= 0 ? 'text-green-400' : 'text-red-400'">
+                <span :class="Number(p.profit) >= 0 ? 'text-success' : 'text-danger'">
                   {{ formatCurrency(p.profit) }}
                 </span>
               </td>
@@ -381,7 +381,7 @@ onMounted(fetchAll)
         >
           <div class="flex items-center justify-between">
             <span class="text-sm text-gray-200">{{ p.product_name }}</span>
-            <span class="text-sm font-medium" :class="Number(p.profit) >= 0 ? 'text-green-400' : 'text-red-400'">
+            <span class="text-sm font-medium" :class="Number(p.profit) >= 0 ? 'text-success' : 'text-danger'">
               {{ formatCurrency(p.profit) }}
             </span>
           </div>

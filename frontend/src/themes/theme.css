@@ -1,4 +1,7 @@
 /* ====== PrintFlow-3D 主题变量 ====== */
+/* 每个颜色含两套变量：
+   --app-*  hex 值（供组件内 color-mix 使用）
+   --app-*-rgb  空格分隔通道值（供 Tailwind /opacity 修饰符使用，见 tailwind.config.js） */
 
 /* 默认: 打印工坊 */
 :root,
@@ -6,13 +9,31 @@
   --app-bg: #f5f7f5;
   --app-card: #ffffff;
   --app-input: #eef1ee;
-  --app-accent: #0d9488;
-  --app-accent-hover: #0f766e;
-  --app-accent-dim: #5f8b87;
+  --app-accent: #0f766e;
+  --app-accent-hover: #115e59;
+  --app-accent-dim: #4a7270;
   --app-border: #d1d5db;
   --app-border-light: #e5e7eb;
   --app-text: #1f2937;
   --app-text-dim: #6b7280;
+
+  --app-bg-rgb: 245 247 245;
+  --app-card-rgb: 255 255 255;
+  --app-input-rgb: 238 241 238;
+  --app-accent-rgb: 15 118 110;
+  --app-accent-hover-rgb: 17 94 89;
+  --app-accent-dim-rgb: 74 114 112;
+  --app-border-rgb: 209 213 219;
+  --app-border-light-rgb: 229 231 235;
+  --app-text-rgb: 31 41 55;
+  --app-text-dim-rgb: 107 114 128;
+
+  /* 语义色 token（浅色主题用深色系保证对比度） */
+  --c-success-rgb: 21 128 61;
+  --c-danger-rgb: 185 28 28;
+  --c-warning-rgb: 161 98 7;
+  --c-info-rgb: 29 78 216;
+
   /* badges - light tints */
   --badge-success-bg: #dcfce7;
   --badge-success-text: #15803d;
@@ -40,6 +61,24 @@
   --app-border-light: #5a4520;
   --app-text: #d1d5db;
   --app-text-dim: #9ca3af;
+
+  --app-bg-rgb: 13 13 13;
+  --app-card-rgb: 26 21 16;
+  --app-input-rgb: 18 16 13;
+  --app-accent-rgb: 212 175 55;
+  --app-accent-hover-rgb: 255 215 0;
+  --app-accent-dim-rgb: 138 122 94;
+  --app-border-rgb: 139 105 20;
+  --app-border-light-rgb: 90 69 32;
+  --app-text-rgb: 209 213 219;
+  --app-text-dim-rgb: 156 163 175;
+
+  /* 语义色 token（暗色主题用亮色系） */
+  --c-success-rgb: 74 222 128;
+  --c-danger-rgb: 248 113 113;
+  --c-warning-rgb: 251 191 36;
+  --c-info-rgb: 96 165 250;
+
   /* badges - dark translucent */
   --badge-success-bg: rgba(22, 163, 74, 0.15);
   --badge-success-text: #4ade80;
@@ -67,6 +106,23 @@
   --app-border-light: #e8eaed;
   --app-text: #1f2328;
   --app-text-dim: #656d76;
+
+  --app-bg-rgb: 255 255 255;
+  --app-card-rgb: 246 248 250;
+  --app-input-rgb: 246 248 250;
+  --app-accent-rgb: 9 105 218;
+  --app-accent-hover-rgb: 5 80 174;
+  --app-accent-dim-rgb: 101 109 118;
+  --app-border-rgb: 208 215 222;
+  --app-border-light-rgb: 232 234 237;
+  --app-text-rgb: 31 35 40;
+  --app-text-dim-rgb: 101 109 118;
+
+  --c-success-rgb: 17 99 41;
+  --c-danger-rgb: 207 34 46;
+  --c-warning-rgb: 154 103 0;
+  --c-info-rgb: 9 105 218;
+
   /* badges - GitHub tinted */
   --badge-success-bg: #dafbe1;
   --badge-success-text: #116329;
@@ -94,6 +150,23 @@
   --app-border-light: #e5e5e5;
   --app-text: #171717;
   --app-text-dim: #737373;
+
+  --app-bg-rgb: 250 250 250;
+  --app-card-rgb: 255 255 255;
+  --app-input-rgb: 245 245 245;
+  --app-accent-rgb: 23 23 23;
+  --app-accent-hover-rgb: 64 64 64;
+  --app-accent-dim-rgb: 115 115 115;
+  --app-border-rgb: 212 212 212;
+  --app-border-light-rgb: 229 229 229;
+  --app-text-rgb: 23 23 23;
+  --app-text-dim-rgb: 115 115 115;
+
+  --c-success-rgb: 22 101 52;
+  --c-danger-rgb: 153 27 27;
+  --c-warning-rgb: 146 64 14;
+  --c-info-rgb: 30 64 175;
+
   /* badges - subtle borders */
   --badge-success-bg: #f0fdf4;
   --badge-success-text: #166534;

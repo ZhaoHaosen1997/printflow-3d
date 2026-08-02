@@ -20,10 +20,10 @@ const newTaskNotes = ref('')
 
 const statusConfig = {
   pending:   { label: '待处理',  class: 'bg-gray-400/10 text-gray-400 border-gray-400/30' },
-  printing:  { label: '打印中',  class: 'bg-blue-400/10 text-blue-400 border-blue-400/30' },
-  done:      { label: '已完成',  class: 'bg-green-400/10 text-green-400 border-green-400/30' },
-  failed:    { label: '失败',    class: 'bg-red-400/10 text-red-400 border-red-400/30' },
-  cancelled: { label: '已取消',  class: 'bg-yellow-400/10 text-yellow-400 border-yellow-400/30' },
+  printing:  { label: '打印中',  class: 'bg-info/10 text-info border-info/30' },
+  done:      { label: '已完成',  class: 'bg-success/10 text-success border-success/30' },
+  failed:    { label: '失败',    class: 'bg-danger/10 text-danger border-danger/30' },
+  cancelled: { label: '已取消',  class: 'bg-warning/10 text-warning border-warning/30' },
 }
 
 const statusTabs = [
@@ -279,7 +279,7 @@ onMounted(() => {
 
           <div class="px-6 py-4 space-y-4">
             <div>
-              <label class="block text-sm text-gray-400 mb-1">选择配方 <span class="text-red-400">*</span></label>
+              <label class="block text-sm text-gray-400 mb-1">选择配方 <span class="text-danger">*</span></label>
               <select
                 v-model="selectedRecipeId"
                 class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm

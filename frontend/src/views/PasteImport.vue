@@ -165,8 +165,8 @@ const statusLabel = {
         </button>
 
         <!-- Errors -->
-        <div v-if="parseErrors.length" class="mt-4 p-3 bg-red-400/10 border border-red-400/20 rounded-lg">
-          <div v-for="(err, idx) in parseErrors" :key="idx" class="text-sm text-red-400 flex items-start gap-2">
+        <div v-if="parseErrors.length" class="mt-4 p-3 bg-danger/10 border border-danger/20 rounded-lg">
+          <div v-for="(err, idx) in parseErrors" :key="idx" class="text-sm text-danger flex items-start gap-2">
             <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5" />
             {{ err }}
           </div>
@@ -201,12 +201,12 @@ const statusLabel = {
             v-for="(order, idx) in parsedOrders"
             :key="idx"
             class="p-4 bg-dark-card border border-border-inner rounded-lg"
-            :class="{ 'border-green-400/30 bg-green-400/5': savedIds.has(idx) }"
+            :class="{ 'border-success/30 bg-success/5': savedIds.has(idx) }"
           >
             <!-- Order Header -->
             <div class="flex items-center justify-between mb-3">
               <div class="flex items-center gap-2">
-                <span v-if="savedIds.has(idx)" class="text-green-400"><Check class="w-4 h-4" /></span>
+                <span v-if="savedIds.has(idx)" class="text-success"><Check class="w-4 h-4" /></span>
                 <span class="text-sm font-medium text-gold font-mono">{{ order.xianyu_order_id || '(无订单号)' }}</span>
                 <StatusBadge :status="order.status" />
               </div>
@@ -218,11 +218,11 @@ const statusLabel = {
             <!-- Product -->
             <div class="text-sm mb-2">
               <span class="text-gray-400">商品: </span>
-              <span :class="order.matched ? 'text-gold' : 'text-red-400'">
+              <span :class="order.matched ? 'text-gold' : 'text-danger'">
                 {{ order.product_name || '(未识别)' }}
               </span>
               <span v-if="order.matched && order.is_bundle" class="ml-2 text-xs px-1.5 py-0.5 rounded bg-purple-400/15 text-purple-400">合集</span>
-              <span v-if="!order.matched && order.product_name" class="ml-2 text-xs px-1.5 py-0.5 rounded bg-red-400/15 text-red-400">未匹配</span>
+              <span v-if="!order.matched && order.product_name" class="ml-2 text-xs px-1.5 py-0.5 rounded bg-danger/15 text-danger">未匹配</span>
             </div>
 
             <!-- Bundle children -->
@@ -238,10 +238,10 @@ const statusLabel = {
               <span class="text-gray-500 line-through">¥{{ Number(order.total_amount).toFixed(2) }}</span>
               <span class="text-gray-300">×{{ order.quantity }}</span>
               <span class="text-gold-price font-medium">实付 ¥{{ Number(order.actual_amount).toFixed(2) }}</span>
-              <span v-if="Number(order.total_amount) > Number(order.actual_amount)" class="text-xs text-red-400">
+              <span v-if="Number(order.total_amount) > Number(order.actual_amount)" class="text-xs text-danger">
                 砍¥{{ (Number(order.total_amount) - Number(order.actual_amount)).toFixed(2) }}
               </span>
-              <span v-if="order.shipping_free" class="text-xs text-green-400">包邮</span>
+              <span v-if="order.shipping_free" class="text-xs text-success">包邮</span>
             </div>
 
             <!-- Buyer Info -->
@@ -267,7 +267,7 @@ const statusLabel = {
                 保存此订单
               </button>
             </div>
-            <div v-else class="mt-3 text-right text-xs text-green-400">
+            <div v-else class="mt-3 text-right text-xs text-success">
               已保存
             </div>
           </div>

@@ -546,7 +546,7 @@ onMounted(fetchAll)
                     </div>
                   </div>
                 </div>
-                <button type="button" class="shrink-0 mt-5 p-1 text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded" @click="removeOrderItem(idx)"><X class="w-4 h-4" /></button>
+                <button type="button" class="shrink-0 mt-5 p-1 text-danger hover:text-danger hover:bg-danger/10 rounded" @click="removeOrderItem(idx)"><X class="w-4 h-4" /></button>
               </div>
             </div>
 
@@ -559,7 +559,7 @@ onMounted(fetchAll)
                 </div>
               </div>
               <div>
-                <label class="block text-sm text-gray-400 mb-1">实付金额 <span class="text-red-400">*</span></label>
+                <label class="block text-sm text-gray-400 mb-1">实付金额 <span class="text-danger">*</span></label>
                 <input v-model.number="orderForm.actual_amount" type="number" step="0.01" min="0" required class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm focus:outline-none focus:border-gold/50" @input="actualAuto = false" />
               </div>
             </div>

@@ -178,9 +178,9 @@ onMounted(() => {
         </div>
         <div
           v-if="saved"
-          class="text-sm text-green-400 flex items-center gap-1"
+          class="text-sm text-success flex items-center gap-1"
         >
-          <span class="inline-block w-1.5 h-1.5 rounded-full bg-green-400"></span>
+          <span class="inline-block w-1.5 h-1.5 rounded-full bg-success"></span>
           已保存
         </div>
       </div>
@@ -266,12 +266,12 @@ onMounted(() => {
               </td>
               <td class="px-4 py-3 text-right">
                 <template v-if="gameEditing === game.id">
-                  <button @click="saveGame(game)" :disabled="gameSaving" class="p-1 text-green-400 hover:text-green-300"><Check class="w-4 h-4" /></button>
+                  <button @click="saveGame(game)" :disabled="gameSaving" class="p-1 text-success hover:text-success"><Check class="w-4 h-4" /></button>
                   <button @click="cancelEditGame" class="p-1 text-gray-500 hover:text-gray-300"><X class="w-4 h-4" /></button>
                 </template>
                 <template v-else>
                   <button @click="startEditGame(game)" class="p-1 text-gray-400 hover:text-gold"><Pencil class="w-4 h-4" /></button>
-                  <button @click="archiveGame(game)" class="p-1 text-gray-400 hover:text-red-400"><Trash2 class="w-4 h-4" /></button>
+                  <button @click="archiveGame(game)" class="p-1 text-gray-400 hover:text-danger"><Trash2 class="w-4 h-4" /></button>
                 </template>
               </td>
             </tr>
@@ -331,12 +331,12 @@ onMounted(() => {
               </td>
               <td class="px-4 py-3 text-right">
                 <template v-if="catEditing === cat.id">
-                  <button @click="saveCat(cat)" :disabled="catSaving" class="p-1 text-green-400 hover:text-green-300"><Check class="w-4 h-4" /></button>
+                  <button @click="saveCat(cat)" :disabled="catSaving" class="p-1 text-success hover:text-success"><Check class="w-4 h-4" /></button>
                   <button @click="cancelEditCat" class="p-1 text-gray-500 hover:text-gray-300"><X class="w-4 h-4" /></button>
                 </template>
                 <template v-else>
                   <button @click="startEditCat(cat)" class="p-1 text-gray-400 hover:text-gold"><Pencil class="w-4 h-4" /></button>
-                  <button @click="archiveCat(cat)" class="p-1 text-gray-400 hover:text-red-400"><Trash2 class="w-4 h-4" /></button>
+                  <button @click="archiveCat(cat)" class="p-1 text-gray-400 hover:text-danger"><Trash2 class="w-4 h-4" /></button>
                 </template>
               </td>
             </tr>

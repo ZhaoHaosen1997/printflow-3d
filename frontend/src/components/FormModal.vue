@@ -76,7 +76,7 @@ function removeArrayItem(field, index) {
           <div v-for="field in fields" :key="field.name" v-show="isVisible(field)">
             <label class="block text-sm text-gray-400 mb-1">
               {{ field.label }}
-              <span v-if="field.required" class="text-red-400">*</span>
+              <span v-if="field.required" class="text-danger">*</span>
             </label>
 
             <!-- text / number -->

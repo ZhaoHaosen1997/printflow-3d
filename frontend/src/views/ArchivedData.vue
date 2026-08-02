@@ -110,8 +110,8 @@ onMounted(fetchData)
       </div>
       <button
         v-if="deleteCount > 0"
-        class="flex items-center gap-2 px-4 py-2 bg-red-400/10 text-red-400 border border-red-400/30 rounded-lg
-               hover:bg-red-400/20 transition-colors text-sm"
+        class="flex items-center gap-2 px-4 py-2 bg-danger/10 text-danger border border-danger/30 rounded-lg
+               hover:bg-danger/20 transition-colors text-sm"
         @click="openConfirm"
       >
         <Trash2 class="w-4 h-4" />
@@ -241,13 +241,13 @@ onMounted(fetchData)
         @mousedown.self="confirmVisible = false"
       >
         <div class="bg-dark-card border border-border-main rounded-lg shadow-2xl w-full max-w-md mx-4">
-          <div class="flex items-center gap-3 px-6 py-4 border-b border-red-400/30">
-            <AlertTriangle class="w-6 h-6 text-red-400" />
-            <h3 class="text-lg font-serif text-red-400">确认永久删除</h3>
+          <div class="flex items-center gap-3 px-6 py-4 border-b border-danger/30">
+            <AlertTriangle class="w-6 h-6 text-danger" />
+            <h3 class="text-lg font-serif text-danger">确认永久删除</h3>
           </div>
           <div class="px-6 py-4">
             <p class="text-gray-300 text-sm">
-              即将永久删除 <span class="text-red-400 font-bold">{{ deleteCount }}</span> 条归档记录。
+              即将永久删除 <span class="text-danger font-bold">{{ deleteCount }}</span> 条归档记录。
             </p>
             <p class="text-gray-500 text-xs mt-2">此操作不可恢复，删除后数据将彻底丢失。</p>
           </div>
@@ -257,7 +257,7 @@ onMounted(fetchData)
               @click="confirmVisible = false"
             >取消</button>
             <button
-              class="px-4 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600
+              class="px-4 py-2 text-sm bg-danger text-white rounded-md hover:bg-danger/90
                      transition-colors disabled:opacity-50"
               :disabled="deleting"
               @click="doDelete"

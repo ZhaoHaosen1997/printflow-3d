@@ -70,14 +70,14 @@ onMounted(fetchSummary)
 
       <div
         class="bg-dark-card border rounded-lg p-4 cursor-pointer hover:border-gold/40 transition-colors"
-        :class="data.low_stock_count > 0 ? 'border-red-500/40' : 'border-border-inner'"
+        :class="data.low_stock_count > 0 ? 'border-danger/40' : 'border-border-inner'"
         @click="goTo('/inventories')"
       >
-        <div class="flex items-center gap-2 text-xs mb-2" :class="data.low_stock_count > 0 ? 'text-red-400' : 'text-gray-500'">
+        <div class="flex items-center gap-2 text-xs mb-2" :class="data.low_stock_count > 0 ? 'text-danger' : 'text-gray-500'">
           <AlertTriangle class="w-3.5 h-3.5" />
           库存预警
         </div>
-        <div class="text-2xl font-bold" :class="data.low_stock_count > 0 ? 'text-red-400' : 'text-gray-200'">
+        <div class="text-2xl font-bold" :class="data.low_stock_count > 0 ? 'text-danger' : 'text-gray-200'">
           {{ data.low_stock_count }}
         </div>
         <div class="text-xs text-gray-600 mt-1">种商品库存不足</div>
@@ -91,7 +91,7 @@ onMounted(fetchSummary)
           <TrendingUp class="w-3.5 h-3.5" />
           本月利润
         </div>
-        <div class="text-2xl font-bold" :class="Number(data.monthly_profit) >= 0 ? 'text-green-400' : 'text-red-400'">
+        <div class="text-2xl font-bold" :class="Number(data.monthly_profit) >= 0 ? 'text-success' : 'text-danger'">
           {{ formatCurrency(data.monthly_profit) }}
         </div>
         <div class="text-xs text-gray-600 mt-1 space-y-0.5">
@@ -101,14 +101,14 @@ onMounted(fetchSummary)
       </div>
 
       <div
-        class="bg-dark-card border border-blue-500/30 rounded-lg p-4 cursor-pointer hover:border-blue-400/50 transition-colors"
+        class="bg-dark-card border border-info/30 rounded-lg p-4 cursor-pointer hover:border-info/50 transition-colors"
         @click="goTo('/print-tasks?status=printing')"
       >
-        <div class="flex items-center gap-2 text-blue-400 text-xs mb-2">
+        <div class="flex items-center gap-2 text-info text-xs mb-2">
           <Printer class="w-3.5 h-3.5" />
           打印中
         </div>
-        <div class="text-2xl font-bold text-blue-400">{{ data.printing_count }}</div>
+        <div class="text-2xl font-bold text-info">{{ data.printing_count }}</div>
         <div class="text-xs text-gray-600 mt-1">
           {{ data.pending_print_count }} 个待打印
         </div>
@@ -172,19 +172,19 @@ onMounted(fetchSummary)
       </div>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 md:p-6">
         <div class="text-center">
-          <div class="text-2xl font-bold text-yellow-400">{{ data.print_task_stats.pending }}</div>
+          <div class="text-2xl font-bold text-warning">{{ data.print_task_stats.pending }}</div>
           <div class="text-xs text-gray-500 mt-1">待打印</div>
         </div>
         <div class="text-center">
-          <div class="text-2xl font-bold text-blue-400">{{ data.print_task_stats.printing }}</div>
+          <div class="text-2xl font-bold text-info">{{ data.print_task_stats.printing }}</div>
           <div class="text-xs text-gray-500 mt-1">打印中</div>
         </div>
         <div class="text-center">
-          <div class="text-2xl font-bold text-green-400">{{ data.print_task_stats.done }}</div>
+          <div class="text-2xl font-bold text-success">{{ data.print_task_stats.done }}</div>
           <div class="text-xs text-gray-500 mt-1">已完成</div>
         </div>
         <div class="text-center">
-          <div class="text-2xl font-bold text-red-400">{{ data.print_task_stats.failed }}</div>
+          <div class="text-2xl font-bold text-danger">{{ data.print_task_stats.failed }}</div>
           <div class="text-xs text-gray-500 mt-1">失败</div>
         </div>
       </div>

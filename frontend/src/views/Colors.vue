@@ -175,7 +175,7 @@ onMounted(fetchColors)
               <Pencil class="w-3 h-3" />
             </button>
             <button
-              class="w-6 h-6 flex items-center justify-center rounded bg-dark-card/80 text-gray-400 hover:text-red-400 text-xs"
+              class="w-6 h-6 flex items-center justify-center rounded bg-dark-card/80 text-gray-400 hover:text-danger text-xs"
               @click.stop="confirmDelete(c)"
             >
               <Trash2 class="w-3 h-3" />
@@ -213,7 +213,7 @@ onMounted(fetchColors)
               <Pencil class="w-3 h-3" />
             </button>
             <button
-              class="w-6 h-6 flex items-center justify-center rounded bg-dark-card/80 text-gray-400 hover:text-red-400 text-xs"
+              class="w-6 h-6 flex items-center justify-center rounded bg-dark-card/80 text-gray-400 hover:text-danger text-xs"
               @click.stop="confirmDelete(c)"
             >
               <Trash2 class="w-3 h-3" />
@@ -244,7 +244,7 @@ onMounted(fetchColors)
             <!-- name -->
             <div>
               <label class="block text-sm text-gray-400 mb-1">
-                名称 <span class="text-red-400">*</span>
+                名称 <span class="text-danger">*</span>
               </label>
               <input
                 v-model="form.name"

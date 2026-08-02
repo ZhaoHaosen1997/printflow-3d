@@ -8,20 +8,24 @@ export default {
     extend: {
       colors: {
         dark: {
-          DEFAULT: 'var(--app-bg)',
-          card: 'var(--app-card)',
-          input: 'var(--app-input)',
+          DEFAULT: 'rgb(var(--app-bg-rgb) / <alpha-value>)',
+          card: 'rgb(var(--app-card-rgb) / <alpha-value>)',
+          input: 'rgb(var(--app-input-rgb) / <alpha-value>)',
         },
         gold: {
-          DEFAULT: 'var(--app-accent)',
-          title: 'var(--app-accent)',
-          price: 'var(--app-accent-hover)',
-          muted: 'var(--app-accent-dim)',
+          DEFAULT: 'rgb(var(--app-accent-rgb) / <alpha-value>)',
+          title: 'rgb(var(--app-accent-rgb) / <alpha-value>)',
+          price: 'rgb(var(--app-accent-hover-rgb) / <alpha-value>)',
+          muted: 'rgb(var(--app-accent-dim-rgb) / <alpha-value>)',
         },
         border: {
-          main: 'var(--app-border)',
-          inner: 'var(--app-border-light)',
+          main: 'rgb(var(--app-border-rgb) / <alpha-value>)',
+          inner: 'rgb(var(--app-border-light-rgb) / <alpha-value>)',
         },
+        success: 'rgb(var(--c-success-rgb) / <alpha-value>)',
+        danger: 'rgb(var(--c-danger-rgb) / <alpha-value>)',
+        warning: 'rgb(var(--c-warning-rgb) / <alpha-value>)',
+        info: 'rgb(var(--c-info-rgb) / <alpha-value>)',
       },
       fontFamily: {
         serif: ['Georgia', 'serif'],

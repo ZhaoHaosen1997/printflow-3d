@@ -101,8 +101,8 @@ onMounted(fetchInventories)
         <h2 class="text-2xl font-serif text-gold-title">库存管理</h2>
         <p class="text-sm text-gold-muted mt-1">
           共 {{ stats.total }} 个商品 ·
-          <span class="text-red-400">{{ stats.outOfStock }} 个缺货</span> ·
-          <span class="text-yellow-400">{{ stats.lowStock }} 个库存不足</span>
+          <span class="text-danger">{{ stats.outOfStock }} 个缺货</span> ·
+          <span class="text-warning">{{ stats.lowStock }} 个库存不足</span>
         </p>
       </div>
       <button
@@ -129,8 +129,8 @@ onMounted(fetchInventories)
         <span
           class="font-medium text-sm"
           :class="{
-            'text-red-400': stockStatus(row) === 'out',
-            'text-yellow-400': stockStatus(row) === 'low',
+            'text-danger': stockStatus(row) === 'out',
+            'text-warning': stockStatus(row) === 'low',
             'text-gray-200': stockStatus(row) === 'normal',
           }"
         >
@@ -144,9 +144,9 @@ onMounted(fetchInventories)
         <span
           class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
           :class="{
-            'bg-red-400/10 text-red-400 border border-red-400/30': stockStatus(row) === 'out',
-            'bg-yellow-400/10 text-yellow-400 border border-yellow-400/30': stockStatus(row) === 'low',
-            'bg-green-400/10 text-green-400 border border-green-400/30': stockStatus(row) === 'normal',
+            'bg-danger/10 text-danger border border-danger/30': stockStatus(row) === 'out',
+            'bg-warning/10 text-warning border border-warning/30': stockStatus(row) === 'low',
+            'bg-success/10 text-success border border-success/30': stockStatus(row) === 'normal',
           }"
         >
           {{ stockStatus(row) === 'out' ? '缺货' : stockStatus(row) === 'low' ? '不足' : '充足' }}
@@ -173,7 +173,7 @@ onMounted(fetchInventories)
 
           <form @submit.prevent="handleSubmit" class="px-6 py-4 space-y-4">
             <div>
-              <label class="block text-sm text-gray-400 mb-1">当前库存数量 <span class="text-red-400">*</span></label>
+              <label class="block text-sm text-gray-400 mb-1">当前库存数量 <span class="text-danger">*</span></label>
               <input
                 v-model.number="form.quantity"
                 type="number" min="0" required
