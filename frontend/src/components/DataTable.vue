@@ -158,7 +158,7 @@ function cellValue(row, col) {
               v-for="action in actions"
               :key="action.label"
               v-show="!action.condition || action.condition(row)"
-              class="px-2.5 py-1 text-xs rounded-md transition-colors border"
+              class="px-2.5 py-1 text-xs rounded-md transition-colors border min-h-[44px]"
               :class="action.class || 'btn-outline'"
               @click="action.handler(row)"
             >

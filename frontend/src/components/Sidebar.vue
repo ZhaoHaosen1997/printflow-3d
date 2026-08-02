@@ -76,14 +76,14 @@ function isActive(item) {
   >
     <div class="p-5 border-b border-border-inner">
       <h1 class="text-xl font-serif text-gold-title tracking-wide">PrintFlow 3D</h1>
-      <p class="text-xs text-gold-muted mt-1">v1.15.1</p>
+      <p class="text-xs text-gold-muted mt-1">v1.15.2</p>
     </div>
     <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
       <router-link
         v-for="item in topItems"
         :key="item.to"
         :to="item.to"
-        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
+        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors min-h-[44px] md:min-h-0"
         :class="
           isActive(item)
             ? 'bg-gold/10 text-gold border border-border-main/30'
@@ -96,7 +96,7 @@ function isActive(item) {
 
       <div class="pt-3">
         <button
-          class="flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-colors"
+          class="flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-colors min-h-[44px] md:min-h-0"
           :class="sysActive ? 'text-gold' : 'text-gray-500 hover:text-gray-300'"
           @click="toggleSys"
         >
@@ -119,7 +119,7 @@ function isActive(item) {
             :key="item.to"
             :is="item.external ? 'a' : 'router-link'"
             v-bind="item.external ? { href: item.to, target: '_blank' } : { to: item.to }"
-            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors"
+            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors min-h-[44px] md:min-h-0"
             :class="
               item.external
                 ? 'text-gray-400 hover:text-gray-200 hover:bg-dark-input'
@@ -141,7 +141,7 @@ function isActive(item) {
               <button
                 v-for="t in themes"
                 :key="t.id"
-                class="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs transition-colors"
+                class="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs transition-colors min-h-[44px] md:min-h-0"
                 :class="
                   currentTheme === t.id
                     ? 'bg-gold/10 text-gold'

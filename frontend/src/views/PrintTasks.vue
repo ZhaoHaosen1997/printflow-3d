@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { Plus, X } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
 import DataTable from '../components/DataTable.vue'
+import SemanticBadge from '../components/SemanticBadge.vue'
 
 const { loading, get, post, put } = useApi()
 
@@ -19,11 +20,11 @@ const selectedRecipeId = ref(null)
 const newTaskNotes = ref('')
 
 const statusConfig = {
-  pending:   { label: '待处理',  class: 'bg-gray-400/10 text-gray-400 border-gray-400/30' },
-  printing:  { label: '打印中',  class: 'bg-info/10 text-info border-info/30' },
-  done:      { label: '已完成',  class: 'bg-success/10 text-success border-success/30' },
-  failed:    { label: '失败',    class: 'bg-danger/10 text-danger border-danger/30' },
-  cancelled: { label: '已取消',  class: 'bg-warning/10 text-warning border-warning/30' },
+  pending:   { label: '待处理',  tone: 'neutral' },
+  printing:  { label: '打印中',  tone: 'info' },
+  done:      { label: '已完成',  tone: 'success' },
+  failed:    { label: '失败',    tone: 'danger' },
+  cancelled: { label: '已取消',  tone: 'warning' },
 }
 
 const statusTabs = [
@@ -222,12 +223,7 @@ onMounted(() => {
         <span class="text-gray-200">{{ value || '-' }}</span>
       </template>
       <template #cell-status="{ value }">
-        <span
-          class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-          :class="statusConfig[value]?.class || 'bg-gray-400/10 text-gray-400 border-gray-400/30'"
-        >
-          {{ statusConfig[value]?.label || value }}
-        </span>
+        <SemanticBadge :tone="statusConfig[value]?.tone" :label="statusConfig[value]?.label || value" />
       </template>
       <template #cell-print_time_min="{ value }">
         <span class="text-gray-400 text-sm">{{ formatPrintTime(value) }}</span>

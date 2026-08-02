@@ -192,5 +192,6 @@ git pull origin master
 | v1.14.1 | 配色修复：组合色 swatches 自动推导 + 中文颜色名分词翻译（新增 100+ 颜色词库） |
 | v1.15.0 | 自动生成商品介绍（固定合集 Token合集包 / 自选合集，配色说明自动生成 + 商品页一键复制） |
 | v1.15.1 | UI 修复：主题色改通道式定义（/opacity 恢复生效）+ 语义色 token（success/danger/warning/info）+ LogViewer 接入主题 + 浅色主题对比度提升 |
+| v1.15.2 | UI 打磨：全局 focus-visible 焦点环 + prefers-reduced-motion 降级 + 移动端 44px 触控目标 + SemanticBadge 徽章组件收敛 + StatusBadge 去重 |
 
 > 当前生产环境已迁移至 Raspberry Pi（内网 `http://192.168.10.10:8848`），部署/版本迭代细节见 AGENTS.md。

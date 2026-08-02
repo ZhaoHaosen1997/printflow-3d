@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { Search, X, Edit, User, MapPin, ShoppingBag, Calendar } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
 import DataTable from '../components/DataTable.vue'
+import SemanticBadge, { toneClasses } from '../components/SemanticBadge.vue'
 
 const { loading, get, put } = useApi()
 
@@ -21,10 +22,10 @@ const editingBuyer = ref(null)
 const saving = ref(false)
 
 const tagOptions = [
-  { value: '老客户', label: '老客户', class: 'bg-info/10 text-info border-info/30' },
-  { value: '大户', label: '大户', class: 'bg-success/10 text-success border-success/30' },
-  { value: '好评', label: '好评', class: 'bg-success/10 text-success border-success/30' },
-  { value: '问题客户', label: '问题客户', class: 'bg-danger/10 text-danger border-danger/30' },
+  { value: '老客户', label: '老客户', tone: 'info' },
+  { value: '大户', label: '大户', tone: 'success' },
+  { value: '好评', label: '好评', tone: 'success' },
+  { value: '问题客户', label: '问题客户', tone: 'danger' },
 ]
 
 const editForm = ref({
@@ -43,11 +44,11 @@ const columns = [
 ]
 
 const statusConfig = {
-  pending_ship: { label: '待发货', class: 'bg-warning/10 text-warning border-warning/30' },
-  shipped: { label: '已发货', class: 'bg-info/10 text-info border-info/30' },
-  completed: { label: '交易成功', class: 'bg-success/10 text-success border-success/30' },
-  cancelled: { label: '已取消', class: 'bg-gray-400/10 text-gray-400 border-gray-400/30' },
-  returned: { label: '退货', class: 'bg-danger/10 text-danger border-danger/30' },
+  pending_ship: { label: '待发货', tone: 'warning' },
+  shipped: { label: '已发货', tone: 'info' },
+  completed: { label: '交易成功', tone: 'success' },
+  cancelled: { label: '已取消', tone: 'neutral' },
+  returned: { label: '退货', tone: 'danger' },
 }
 
 const actions = [
@@ -121,8 +122,8 @@ function formatAmount(val) {
   return `¥${Number(val).toFixed(2)}`
 }
 
-function getTagClass(tag) {
-  return tagOptions.find(t => t.value === tag)?.class || 'bg-gray-400/10 text-gray-400 border-gray-400/30'
+function getTagTone(tag) {
+  return tagOptions.find(t => t.value === tag)?.tone || 'neutral'
 }
 
 onMounted(fetchBuyers)
@@ -180,14 +181,12 @@ onMounted(fetchBuyers)
       </template>
       <template #cell-tags="{ value }">
         <div class="flex flex-wrap gap-1">
-          <span
+          <SemanticBadge
             v-for="tag in (value || [])"
             :key="tag"
-            class="inline-flex items-center px-1.5 py-0.5 rounded text-xs"
-            :class="getTagClass(tag)"
-          >
-            {{ tag }}
-          </span>
+            :tone="getTagTone(tag)"
+            :label="tag"
+          />
           <span v-if="!value || value.length === 0" class="text-gray-600 text-xs">-</span>
         </div>
       </template>
@@ -265,12 +264,12 @@ onMounted(fetchBuyers)
               <div v-if="selectedBuyer.tags && selectedBuyer.tags.length" class="pt-2 border-t border-border-inner/50">
                 <div class="text-xs text-gray-500 mb-2">标签</div>
                 <div class="flex flex-wrap gap-1">
-                  <span
+                  <SemanticBadge
                     v-for="tag in selectedBuyer.tags"
                     :key="tag"
-                    class="inline-flex items-center px-2 py-0.5 rounded text-xs"
-                    :class="getTagClass(tag)"
-                  >{{ tag }}</span>
+                    :tone="getTagTone(tag)"
+                    :label="tag"
+                  />
                 </div>
               </div>
               <div v-if="selectedBuyer.notes" class="pt-2 border-t border-border-inner/50">
@@ -306,10 +305,7 @@ onMounted(fetchBuyers)
                     >
                       <td class="px-3 py-2 text-gray-300 font-mono text-xs">{{ o.order_no }}</td>
                       <td class="px-3 py-2">
-                        <span
-                          class="inline-flex items-center px-1.5 py-0.5 rounded text-xs"
-                          :class="statusConfig[o.status]?.class || 'bg-gray-400/10 text-gray-400 border-gray-400/30'"
-                        >{{ statusConfig[o.status]?.label || o.status }}</span>
+                        <SemanticBadge :tone="statusConfig[o.status]?.tone" :label="statusConfig[o.status]?.label || o.status" />
                       </td>
                       <td class="px-3 py-2 text-right text-gray-200">{{ formatAmount(o.actual_amount) }}</td>
                       <td class="px-3 py-2 text-right text-gray-500 text-xs">{{ formatTime(o.order_time) }}</td>
@@ -348,7 +344,7 @@ onMounted(fetchBuyers)
                   :key="tag.value"
                   class="px-3 py-1.5 rounded-md text-xs font-medium border transition-colors"
                   :class="editForm.tags.includes(tag.value)
-                    ? tag.class + ' border-current'
+                    ? toneClasses[tag.tone] + ' border-current'
                     : 'bg-dark-input border-border-inner text-gray-500 hover:text-gray-300'"
                   @click="toggleTag(tag.value)"
                 >

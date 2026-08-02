@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { Sparkles, Save, Check, X, AlertTriangle } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
 import StatusBadge from '../components/StatusBadge.vue'
+import SemanticBadge from '../components/SemanticBadge.vue'
 
 const { loading, post } = useApi()
 
@@ -221,8 +222,8 @@ const statusLabel = {
               <span :class="order.matched ? 'text-gold' : 'text-danger'">
                 {{ order.product_name || '(未识别)' }}
               </span>
-              <span v-if="order.matched && order.is_bundle" class="ml-2 text-xs px-1.5 py-0.5 rounded bg-purple-400/15 text-purple-400">合集</span>
-              <span v-if="!order.matched && order.product_name" class="ml-2 text-xs px-1.5 py-0.5 rounded bg-danger/15 text-danger">未匹配</span>
+              <SemanticBadge v-if="order.matched && order.is_bundle" tone="accent" label="合集" class="ml-2" />
+              <SemanticBadge v-if="!order.matched && order.product_name" tone="danger" label="未匹配" class="ml-2" />
             </div>
 
             <!-- Bundle children -->

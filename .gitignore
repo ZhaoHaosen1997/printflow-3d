@@ -27,7 +27,7 @@ Thumbs.db
 old_data/
 old_version/
 scripts/
-.workbuddy/
+.workbuddy
 .claude/
 
 # Windows local scripts (not deployed to Pi)

@@ -16,7 +16,6 @@ const statusMap = {
   completed:    { cls: 'badge-success', label: '交易成功' },
   cancelled:    { cls: 'badge-danger',  label: '已取消' },
   returned:     { cls: 'badge-danger',  label: '退货' },
-  archived:     { cls: 'badge-neutral', label: '已归档' },
   // PrintTask statuses
   pending:      { cls: 'badge-warning', label: '待处理' },
   // Product categories

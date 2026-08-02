@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { Plus, X, Check } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
 import DataTable from '../components/DataTable.vue'
+import SemanticBadge from '../components/SemanticBadge.vue'
 
 const { loading, get, put, post } = useApi()
 
@@ -91,6 +92,15 @@ function stockStatus(row) {
   return 'normal'
 }
 
+const stockToneMap = { out: 'danger', low: 'warning', normal: 'success' }
+const stockLabelMap = { out: '缺货', low: '不足', normal: '充足' }
+function stockTone(row) {
+  return stockToneMap[stockStatus(row)]
+}
+function stockLabel(row) {
+  return stockLabelMap[stockStatus(row)]
+}
+
 onMounted(fetchInventories)
 </script>
 
@@ -141,16 +151,7 @@ onMounted(fetchInventories)
         <span class="text-gray-400">{{ value }}</span>
       </template>
       <template #cell-stock_status="{ row }">
-        <span
-          class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-          :class="{
-            'bg-danger/10 text-danger border border-danger/30': stockStatus(row) === 'out',
-            'bg-warning/10 text-warning border border-warning/30': stockStatus(row) === 'low',
-            'bg-success/10 text-success border border-success/30': stockStatus(row) === 'normal',
-          }"
-        >
-          {{ stockStatus(row) === 'out' ? '缺货' : stockStatus(row) === 'low' ? '不足' : '充足' }}
-        </span>
+        <SemanticBadge :tone="stockTone(row)" :label="stockLabel(row)" />
       </template>
     </DataTable>
 
