@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, nextTick } from 'vue'
-import { Plus, X, Package, Star, Upload, Crop, GripVertical, ArrowUpDown, Check } from '@lucide/vue'
+import { Plus, X, Package, Star, Upload, Crop, GripVertical, ArrowUpDown, Check, Copy } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
 import DataTable from '../components/DataTable.vue'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -67,6 +67,7 @@ const columns = [
 const productActions = [
   { label: '编辑', handler: editProduct, class: 'btn-outline' },
   { label: '配方', handler: openRecipes, class: 'btn-soft' },
+  { label: '生成介绍', handler: openDescription, condition: (r) => r.category === 'bundle', class: 'btn-ghost' },
   { label: '归档', handler: archiveProduct, condition: (r) => r.status === 'active', class: 'btn-danger-outline' },
 ]
 
@@ -96,6 +97,13 @@ const cropSrc = ref('')
 const cropFilename = ref('')
 const cropCropper = ref(null)
 const cropImageEl = ref(null)
+
+// 商品介绍生成
+const descModalVisible = ref(false)
+const descProduct = ref(null)
+const descText = ref('')
+const descLoading = ref(false)
+const descCopied = ref(false)
 
 const productForm = ref({
   name: '',
@@ -282,6 +290,47 @@ async function archiveProduct(row) {
   if (!confirm(`确定归档商品 "${row.name}"？`)) return
   await del(`/api/products/${row.id}`)
   row.status = 'archived'
+}
+
+async function openDescription(row) {
+  descProduct.value = row
+  descModalVisible.value = true
+  descCopied.value = false
+  await loadDescription()
+}
+
+async function loadDescription() {
+  descLoading.value = true
+  descCopied.value = false
+  try {
+    const res = await get(`/api/descriptions/bundle/${descProduct.value.id}`)
+    descText.value = res.text || ''
+  } catch (e) {
+    alert('生成介绍失败: ' + (e.message || e))
+  } finally {
+    descLoading.value = false
+  }
+}
+
+async function copyDescription() {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(descText.value)
+    } else {
+      const ta = document.createElement('textarea')
+      ta.value = descText.value
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+    }
+    descCopied.value = true
+    setTimeout(() => { descCopied.value = false }, 1500)
+  } catch (e) {
+    alert('复制失败，请手动复制: ' + (e.message || e))
+  }
 }
 
 async function handleProductSubmit() {
@@ -1065,6 +1114,60 @@ onMounted(fetchAll)
               @click="handleRecipeSubmit"
             >
               {{ recipeSaving ? '保存中...' : '保存' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Description Modal -->
+    <Teleport to="body">
+      <div
+        v-if="descModalVisible"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+        @mousedown.self="descModalVisible = false"
+      >
+        <div class="bg-dark-card border border-border-main rounded-lg shadow-2xl w-full max-w-2xl mx-4 max-h-[85vh] flex flex-col">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-border-inner">
+            <h3 class="text-lg font-serif text-gold-title">商品介绍 — {{ descProduct?.name }}</h3>
+            <button class="text-gray-500 hover:text-gray-300" @click="descModalVisible = false">
+              <X class="w-5 h-5" />
+            </button>
+          </div>
+          <div class="flex-1 overflow-y-auto px-6 py-4">
+            <textarea
+              v-model="descText"
+              rows="20"
+              spellcheck="false"
+              class="w-full px-3 py-2 bg-dark-input border border-border-inner rounded-md text-gray-200 text-sm font-mono leading-relaxed
+                     focus:outline-none focus:border-gold/50 resize-y"
+              placeholder="生成中..."
+            ></textarea>
+            <p class="text-xs text-gray-600 mt-2">可直接编辑后复制，修改保存到闲鱼即可</p>
+          </div>
+          <div class="flex justify-end gap-3 px-6 py-4 border-t border-border-inner">
+            <button
+              class="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 hover:bg-dark-input rounded-md transition-colors"
+              @click="descModalVisible = false"
+            >
+              关闭
+            </button>
+            <button
+              class="px-4 py-2 text-sm text-gray-300 hover:text-gold border border-border-inner rounded-md hover:border-gold/40 transition-colors disabled:opacity-50"
+              :disabled="descLoading"
+              @click="loadDescription"
+            >
+              {{ descLoading ? '生成中...' : '重新生成' }}
+            </button>
+            <button
+              class="px-4 py-2 text-sm bg-gold/20 text-gold border border-gold/40 rounded-md hover:bg-gold/30 transition-colors disabled:opacity-50"
+              :disabled="descLoading"
+              @click="copyDescription"
+            >
+              <span class="flex items-center gap-1.5">
+                <Copy class="w-3.5 h-3.5" />
+                {{ descCopied ? '已复制' : '复制' }}
+              </span>
             </button>
           </div>
         </div>
