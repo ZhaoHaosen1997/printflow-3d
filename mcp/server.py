@@ -6,6 +6,40 @@ mcp = FastMCP("printflow")
 API_BASE = "http://localhost:8848/api"
 TIMEOUT = 30.0
 
+# Order status keys → Chinese labels (kept in sync with backend.models.ORDER_STATUS)
+ORDER_STATUS = {
+    "pending_ship": "待发货",
+    "shipped": "已发货",
+    "completed": "交易成功",
+    "cancelled": "已取消",
+    "returned": "退货",
+    "archived": "已归档",
+}
+# Reverse lookup: Chinese label / alias → canonical key
+STATUS_ALIASES = {
+    "待发货": "pending_ship",
+    "已发货": "shipped",
+    "交易成功": "completed",
+    "已完成": "completed",
+    "完成": "completed",
+    "已取消": "cancelled",
+    "取消": "cancelled",
+    "退货": "returned",
+    "已归档": "archived",
+    "归档": "archived",
+    "pending_ship": "pending_ship",
+    "shipped": "shipped",
+    "completed": "completed",
+    "cancelled": "cancelled",
+    "returned": "returned",
+    "archived": "archived",
+}
+for k, label in ORDER_STATUS.items():
+    STATUS_ALIASES[label] = k
+
+# Statuses that are NOT finished/archived (awaiting action)
+ACTIVE_STATUSES = {"pending_ship", "shipped"}
+
 
 def _get(path: str, params: dict = None) -> dict | list | str:
     try:
@@ -37,6 +71,35 @@ def _post(path: str, json: dict = None) -> dict | list | str:
         return f"Error: {detail}"
     except Exception as e:
         return f"Error: {e}"
+
+
+def _put(path: str, json: dict = None) -> dict | list | str:
+    try:
+        with httpx.Client(timeout=TIMEOUT) as client:
+            r = client.put(f"{API_BASE}{path}", json=json or {})
+            r.raise_for_status()
+            return r.json()
+    except httpx.ConnectError:
+        return f"Error: Cannot connect to PrintFlow API ({API_BASE})"
+    except httpx.HTTPStatusError as e:
+        try:
+            detail = e.response.json().get("detail", e.response.text)
+        except Exception:
+            detail = e.response.text
+        return f"Error: {detail}"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+def _normalize_status(status: str) -> str | None:
+    """Normalize a user-supplied status (English key or Chinese label) to its key.
+
+    Returns the canonical key, or None when the value is not recognized.
+    """
+    if not status:
+        return None
+    key = STATUS_ALIASES.get(str(status).strip())
+    return key if key else None
 
 
 @mcp.tool()
@@ -262,6 +325,124 @@ def create_order(
     if isinstance(result, str):
         return {"error": result}
     return result
+
+
+@mcp.tool()
+def list_unfinished_orders(status: str = None, limit: int = 50, offset: int = 0) -> dict:
+    """List all unfinished (non-terminal) orders for status handling.
+
+    "Unfinished" means orders still awaiting action — status in
+    (pending_ship 待发货, shipped 已发货). Archived / completed / cancelled /
+    returned orders are excluded. Returns a compact list ordered newest-first.
+
+    Args:
+        status: Optional filter. Accepts English key ("pending_ship",
+            "shipped") or Chinese label ("待发货", "已发货"). If omitted,
+            lists all unfinished orders.
+        limit: Max number of orders to return. Default 50, max 200.
+        offset: Pagination offset. Default 0.
+
+    Returns:
+        A dict with "items" (list of compact order objects) and "total".
+        Each item has id, order_no, status, status_label, buyer_nickname,
+        order_time, actual_amount, and item summary.
+    """
+    limit = max(1, min(int(limit), 200))
+    offset = max(0, int(offset))
+
+    status_key = _normalize_status(status) if status else None
+    if status and not status_key:
+        return {
+            "error": f"未知状态: {status}。有效值: {', '.join(ORDER_STATUS)} 或中文(待发货/已发货/交易成功/已取消/退货/已归档)"
+        }
+    if status_key and status_key not in ACTIVE_STATUSES:
+        return {
+            "error": f"状态 '{status}' 不属于待处理(未完成)范围。未完成订单仅含: 待发货(pending_ship)、已发货(shipped)"
+        }
+
+    params = {"status": status_key} if status_key else {}
+    params["limit"] = limit
+    params["offset"] = offset
+    result = _get("/orders", params)
+    if isinstance(result, str):
+        return {"error": result}
+
+    items = []
+    for o in result.get("items", []):
+        o_status = o.get("status")
+        # Belt-and-suspenders: skip anything that is actually terminal
+        if o_status not in ACTIVE_STATUSES:
+            continue
+        items.append({
+            "id": o["id"],
+            "order_no": o["order_no"],
+            "status": o_status,
+            "status_label": ORDER_STATUS.get(o_status, o_status),
+            "buyer_nickname": o.get("buyer_nickname"),
+            "order_time": o.get("order_time"),
+            "actual_amount": o.get("actual_amount"),
+            "source": o.get("source"),
+            "items": [
+                {
+                    "product_name": oi.get("product_name"),
+                    "quantity": oi.get("quantity"),
+                }
+                for oi in o.get("items", [])
+            ],
+        })
+    return {"items": items, "total": result.get("total")}
+
+
+@mcp.tool()
+def update_order_status(order_id: int, status: str, reason: str = None) -> dict:
+    """Change the status of an existing order.
+
+    Backend auto-handles side effects: setting completed_time when entering a
+    terminal status, restoring inventory when cancelled/returned, re-deducting
+    inventory when reactivating, and buyer stats sync. Archiving is not allowed.
+
+    Args:
+        order_id: The order ID (required).
+        status: Target status. Accepts English key or Chinese label:
+            pending_ship 待发货, shipped 已发货, completed 交易成功,
+            cancelled 已取消, returned 退货. ("archived" 已归档 is NOT allowed.)
+        reason: Optional note appended to the order's notes field.
+
+    Returns:
+        Updated order object with id, order_no, status, completed_time and
+        other key fields. Returns an error dict on failure.
+    """
+    status_key = _normalize_status(status)
+    if not status_key:
+        return {
+            "error": f"未知状态: {status}。有效值: {', '.join(k for k in ORDER_STATUS if k != 'archived')} 或中文(待发货/已发货/交易成功/已取消/退货)"
+        }
+    if status_key == "archived":
+        return {"error": "不允许将订单归档，请选择其他状态。未完成订单可改为: 已发货(发货)、交易成功(完成)、已取消、退货。"}
+
+    payload = {"status": status_key}
+    result = _put(f"/orders/{int(order_id)}", payload)
+    if isinstance(result, str):
+        return {"error": result}
+
+    if reason:
+        old_notes = result.get("notes") or ""
+        new_notes = f"{old_notes}\n[状态变更] {reason}".strip()
+        updated = _put(f"/orders/{int(order_id)}", {"notes": new_notes})
+        if not isinstance(updated, str):
+            result = updated
+
+    return {
+        "id": result["id"],
+        "order_no": result["order_no"],
+        "status": result.get("status"),
+        "status_label": ORDER_STATUS.get(result.get("status"), result.get("status")),
+        "completed_time": result.get("completed_time"),
+        "buyer_nickname": result.get("buyer_nickname"),
+        "actual_amount": result.get("actual_amount"),
+        "notes": result.get("notes"),
+        "message": f"订单 {result.get('order_no')} 状态已更新为 {ORDER_STATUS.get(result.get('status'), result.get('status'))}",
+    }
 
 
 if __name__ == "__main__":
