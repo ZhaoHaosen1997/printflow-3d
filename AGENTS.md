@@ -32,6 +32,30 @@ Pi 上项目目录已初始化为 git 仓库，remote `origin` 指向本地 forg
 
 **数据保护**：`data/` 目录（app.db、images、logs）在 `.gitignore` 中，git 操作不会覆盖。
 
+### Hermes MCP 更新与重载（重要）
+
+PrintFlow 的 MCP 工具（`mcp/server.py`）**不是** printflow.service 的一部分，也不由 systemd 直接托管。它由 **Hermes gateway** 以 stdio 子进程方式拉起：
+
+- Hermes gateway 本身是 systemd 服务 `hermes-gateway.service`（命令 `python -m hermes_cli.main gateway run`），管理 CLI：`hermes gateway start|stop|restart|status`。
+- gateway 启动时通过 `mcp_stdio_watchdog.py`（parent-death 监督器）派生 MCP server：`<watchdog> --ppid <gateway_pid> -- .../printflow-3d/mcp/server.py`。该 watchdog **只**在 gateway 进程死亡时杀掉子进程，**不是** respawn/重连锁。
+- `mcp/server.py` 是 Python 代码，改它并部署到 Pi 后**必须重载 MCP server 才生效**（进程内存里仍是旧代码）。
+
+**何时需要重载**：每次修改 `mcp/server.py` 并部署到 Pi 后。
+
+**重载方式（二选一）**：
+1. **立即、干净（推荐）**——重启 Hermes gateway，会重新派生全部 MCP（含 printflow 与 usage-data-viewer），加载新代码：
+   ```bash
+   sudo systemctl restart hermes-gateway.service
+   # 或（需 sudo）
+   ~/.venvs/hermes/bin/python -m hermes_cli.main gateway restart
+   ```
+2. **惰性重连**——只 kill 掉 printflow 的 MCP 子进程（`mcp/server.py` 及其 watchdog），Hermes 会在**下次调用 printflow 工具**时自动 `_signal_reconnect` 用新代码拉起（首次调用返回 "reconnect requested，稍等重试"，第二次成功）。适合不想动整个 gateway 会话的场景，但工具会短暂不可用。
+
+**注意**：
+- 重启 Hermes 会重建整个 gateway 会话（含 MCP 连接），需用户确认。
+- 若 sudo 需密码，命令由用户自行执行。
+- MCP server 通过 HTTP 连 `http://localhost:8848/api`（即 printflow FastAPI），故重载 MCP **不影响** FastAPI 服务；两者独立。
+
 ---
 
 ## 技术栈（禁止随意更换）
