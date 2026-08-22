@@ -444,6 +444,8 @@ class StructuredParseItem(BaseModel):
     total_amount: Decimal = Decimal("0")
     actual_amount: Decimal = Decimal("0")
     quantity: int = 1
+    unit_price: Optional[Decimal] = None
+    material_cost: Optional[Decimal] = None
 
 
 class StructuredParseRequest(BaseModel):
@@ -458,6 +460,7 @@ class StructuredParseRequest(BaseModel):
 class ParseResponse(BaseModel):
     orders: List[ParsedOrder] = []
     errors: List[str] = []
+    warnings: List[dict] = []
 
 
 # ============ Inventories ============

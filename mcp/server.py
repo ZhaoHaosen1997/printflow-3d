@@ -102,6 +102,43 @@ def _normalize_status(status: str) -> str | None:
     return key if key else None
 
 
+def _order_price_warnings(order: dict) -> list[dict]:
+    """Compare order item line sum against the order's totals (P0).
+
+    `order` is the OrderResponse JSON from the backend. Returns a list of
+    warning dicts (hints, not errors) when the sum of item unit_price × quantity
+    disagrees with the 原价总额(total_amount) or 实付金额(actual_amount).
+    """
+    warnings = []
+    items = order.get("items") or []
+    line_sum = sum(
+        (float(it.get("unit_price") or 0)) * (int(it.get("quantity") or 1))
+        for it in items
+    )
+    if line_sum <= 0:
+        return warnings
+    line_sum = round(line_sum, 2)
+    total_amount = round(float(order.get("total_amount") or 0), 2)
+    actual_amount = round(float(order.get("actual_amount") or 0), 2)
+    if total_amount > 0 and abs(line_sum - total_amount) > 0.01:
+        warnings.append({
+            "type": "items_sum_vs_total",
+            "items_sum": line_sum,
+            "total_amount": total_amount,
+            "diff": round(total_amount - line_sum, 2),
+            "message": f"明细合计 ¥{line_sum:.2f} 与 原价总额 ¥{total_amount:.2f} 不一致(差 ¥{abs(total_amount - line_sum):.2f})",
+        })
+    if actual_amount > 0 and abs(line_sum - actual_amount) > 0.01:
+        warnings.append({
+            "type": "items_sum_vs_actual",
+            "items_sum": line_sum,
+            "actual_amount": actual_amount,
+            "diff": round(actual_amount - line_sum, 2),
+            "message": f"明细合计 ¥{line_sum:.2f} 与 实付金额 ¥{actual_amount:.2f} 不一致(差 ¥{abs(actual_amount - line_sum):.2f})",
+        })
+    return warnings
+
+
 @mcp.tool()
 def search_products(search: str = "", game_id: int = None, category_id: int = None) -> list[dict]:
     """Search PrintFlow products by name or keyword.
@@ -159,6 +196,18 @@ def get_product_detail(product_id: int) -> dict:
     result = _get(f"/products/{product_id}")
     if isinstance(result, str):
         return {"error": result}
+
+    # P5: resolve bundle child IDs into names so the AI can see what a
+    # 固定合集 (如 Token合集包/打包链接) actually contains without extra lookups.
+    bundle_items = result.get("bundle_items")
+    if bundle_items and isinstance(bundle_items, list):
+        resolved = []
+        for cid in bundle_items:
+            child = _get(f"/products/{int(cid)}")
+            if isinstance(child, dict) and "error" not in child:
+                resolved.append({"id": int(cid), "name": child.get("name")})
+        bundle_items = resolved
+
     return {
         "id": result["id"],
         "name": result["name"],
@@ -170,7 +219,7 @@ def get_product_detail(product_id: int) -> dict:
         "material_cost": result.get("material_cost"),
         "colors": result.get("colors"),
         "contents": result.get("contents"),
-        "bundle_items": result.get("bundle_items"),
+        "bundle_items": bundle_items,
         "recipes": [
             {
                 "id": r["id"],
@@ -222,6 +271,8 @@ def parse_structured_order(
     total_amount: float = 0,
     actual_amount: float = 0,
     quantity: int = 1,
+    unit_price: float = None,
+    items: list[dict] = None,
     buyer_nickname: str = None,
     buyer_province: str = None,
 ) -> dict:
@@ -231,32 +282,65 @@ def parse_structured_order(
     (e.g., from image recognition). Skips the text assembly step and goes directly
     to product matching and bundle expansion.
 
+    Multi-item (自定义合集): pass `items` as a list of dicts, one per product:
+        {"product_name": "...", "quantity": 1, "unit_price": 18.0}
+    When `items` is omitted, a single line is built from product_name/quantity.
+
+    Pricing semantics (important):
+    - `unit_price` = 实际成交单价 (打包优惠/改价后的价), NOT the system listed price.
+      The backend snapshots whatever you pass; it does not force the system price.
+    - Do NOT copy the system price (price_single/price_bundle) into unit_price unless
+      that's the actual agreed price — doing so causes amount mismatches.
+
+    补录老单: pass the status the order is actually in (shipped 已发货 / completed 交易成功),
+    not the default pending_ship. If you are unsure, ask the user.
+
+    Returns a parse result with:
+    - orders: matched product list (with matched_product_id, bundle_items, discount).
+    - errors: parse failures.
+    - warnings: price-mismatch hints (成交价 vs 系统标价, etc.) — surface these to the user.
+
     Args:
         xianyu_order_id: Xianyu order ID (15-20 digit number).
         status: Order status, one of: pending_ship, shipped, completed. Default: pending_ship.
         order_time: Order time in ISO format (e.g., "2026-06-12T12:45:56").
-        product_name: Product name as shown on Xianyu (for fuzzy matching).
-        total_amount: Original total amount (before discount).
+        product_name: Product name as shown on Xianyu (for fuzzy matching). Used when items is omitted.
+        total_amount: Original total amount (before discount). Used when items is omitted.
         actual_amount: Actual amount paid by buyer.
         quantity: Number of items. Default: 1.
+        unit_price: 实际成交单价 for the single line (when items is omitted).
+        items: Optional list of {product_name, quantity, unit_price} for a multi-product order.
         buyer_nickname: Buyer's nickname on Xianyu.
         buyer_province: Buyer's province (extracted from address).
 
     Returns:
-        Parse result with orders list (containing matched product info) and errors list.
+        Parse result with orders, errors, and warnings lists.
     """
-    items = [{
-        "product_name": product_name or "",
-        "total_amount": total_amount,
-        "actual_amount": actual_amount,
-        "quantity": quantity,
-    }]
+    if items:
+        items_payload = [
+            {
+                "product_name": it.get("product_name") or "",
+                "total_amount": it.get("total_amount") or total_amount,
+                "actual_amount": it.get("actual_amount") or actual_amount,
+                "quantity": it.get("quantity") or 1,
+                "unit_price": it.get("unit_price"),
+            }
+            for it in items
+        ]
+    else:
+        items_payload = [{
+            "product_name": product_name or "",
+            "total_amount": total_amount,
+            "actual_amount": actual_amount,
+            "quantity": quantity,
+            "unit_price": unit_price,
+        }]
     payload = {
         "xianyu_order_id": xianyu_order_id,
         "status": status,
         "buyer_nickname": buyer_nickname,
         "buyer_province": buyer_province,
-        "items": items,
+        "items": items_payload,
     }
     if order_time:
         payload["order_time"] = order_time
@@ -289,6 +373,13 @@ def create_order(
     - Do NOT set shipping_fee, packaging_fee, service_fee — backend auto-calculates from settings.
     - material_cost: pass 0, backend snapshots from product automatically.
     - discount: total_amount - actual_amount (bargain amount).
+    - unit_price per item = 实际成交单价 (the agreed price), NOT the system listed price.
+      The backend snapshots whatever value you pass; it does not force the system
+      price. Do not copy price_single/price_bundle unless it is the real agreed price.
+    - 补录老单: set `status` to the order's actual state (e.g. shipped 已发货 /
+      completed 交易成功), not the default pending_ship. Ask the user if unsure.
+    - Duplicate prevention: if the same xianyu_order_id already exists, the backend
+      returns an error; do not retry — edit the existing order instead.
 
     Args:
         xianyu_order_id: Xianyu order ID.
@@ -304,7 +395,9 @@ def create_order(
         items: List of order items, each with product_id, product_name, quantity, unit_price, material_cost.
 
     Returns:
-        Created order object with order_no, id, and all details.
+        Created order object with order_no, id, and all details. When item line sum
+        disagrees with total_amount/actual_amount, a `warnings` list is attached —
+        surface these to the user for confirmation.
     """
     payload = {
         "xianyu_order_id": xianyu_order_id,
@@ -324,6 +417,11 @@ def create_order(
     result = _post("/orders", payload)
     if isinstance(result, str):
         return {"error": result}
+    # P0: attach line-sum vs totals warnings as hints for the user
+    if isinstance(result, dict):
+        price_warnings = _order_price_warnings(result)
+        if price_warnings:
+            result = {**result, "warnings": price_warnings}
     return result
 
 

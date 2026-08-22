@@ -236,8 +236,18 @@ function recalcItemPrices() {
     if (!item.product_id) continue
     const prod = products.value.find(p => p.id === Number(item.product_id))
     if (prod) {
-      item.unit_price = useBundle ? Number(prod.price_bundle || prod.price_single) : Number(prod.price_single)
-      item.material_cost = Number(prod.material_cost)
+      // 固定合集（如 Token合集包）：内容固定、有整体一口价(price_single)，
+      // 无论单卖还是与其他商品同单，永远按 price_single 计价——
+      // 不能被下方"多商品 → 用 price_bundle"的启发式覆盖(固定合集 price_bundle 为0)。
+      if (prod.category === 'bundle') {
+        item.unit_price = Number(prod.price_single) || 0
+      } else {
+        // 普通子商品：合集场景用 price_bundle 优惠价，price_bundle 无意义(0/空)时回退 price_single
+        item.unit_price = useBundle
+          ? Number(prod.price_bundle) || Number(prod.price_single) || 0
+          : Number(prod.price_single) || 0
+      }
+      item.material_cost = Number(prod.material_cost) || 0
     }
   }
   recalcTotal()

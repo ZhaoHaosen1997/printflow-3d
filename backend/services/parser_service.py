@@ -231,13 +231,54 @@ def _extract_province(text: str) -> str | None:
     return None
 
 
-def match_products(db: Session, orders: list[dict]) -> list[dict]:
-    """Fuzzy match product names and resolve bundle items."""
+def _price_warning(product: Product, name: str, unit_price) -> dict | None:
+    """Compare an intended unit price against a product's system prices.
+
+    Returns a warning dict when the given unit price matches neither the
+    standalone price (price_single) nor the bundle-child price (price_bundle),
+    i.e. the成交价 is genuinely off the listed menu (改价/打包优惠). Emits
+    nothing when the price is a listed price (or no price was provided).
+    Differs are hints, not errors — they let the AI surface a mismatch to the
+    user before committing the order.
+    """
+    if unit_price is None:
+        return None
+    unit_price = float(unit_price)
+    if unit_price <= 0:
+        return None
+    refs = []
+    if product.price_single is not None and float(product.price_single) > 0:
+        refs.append(("price_single", float(product.price_single)))
+    if product.price_bundle is not None and float(product.price_bundle) > 0:
+        refs.append(("price_bundle", float(product.price_bundle)))
+    if not refs:
+        return None
+    # Nearest listed price; warn only when成交价 matches no listed price
+    nearest = min(refs, key=lambda r: abs(r[1] - unit_price))
+    if abs(nearest[1] - unit_price) <= 0.01:
+        return None
+    return {
+        "product_id": product.id,
+        "name": name,
+        "system_price": nearest[1],
+        "system_price_type": nearest[0],
+        "order_price": unit_price,
+        "diff": round(unit_price - nearest[1], 2),
+    }
+
+
+def match_products(db: Session, orders: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Fuzzy match product names and resolve bundle items.
+
+    Returns (results, warnings). `results` is the matched order list; `warnings`
+    is a flat list of price-mismatch hints for the AI to surface to the user.
+    """
     products = db.query(Product).filter(
         Product.status == "active",
         Product.price_single > 0,
     ).all()
     results = []
+    warnings = []
 
     for order in orders:
         matched_product = None
@@ -281,6 +322,13 @@ def match_products(db: Session, orders: list[dict]) -> list[dict]:
                 actual = float(order["actual_amount"])
                 result["discount"] = max(total_bundle_price - actual, 0)
 
+        # P0: price-mismatch warning —成交价 vs 系统标价(price_single/price_bundle)
+        if matched_product and order.get("unit_price") is not None:
+            w = _price_warning(matched_product, order.get("product_name") or matched_product.name,
+                               order.get("unit_price"))
+            if w:
+                warnings.append(w)
+
         if result["matched"]:
             log_parser("商品匹配", xianyu_name=order.get("product_name", ""),
                        system_name=matched_product.name,
@@ -291,7 +339,10 @@ def match_products(db: Session, orders: list[dict]) -> list[dict]:
 
         results.append(result)
 
-    return results
+    if warnings:
+        log_parser_warn("价格差异", count=str(len(warnings)))
+
+    return results, warnings
 
 
 def _fuzzy_match(name: str, products: list[Product]) -> Product | None:

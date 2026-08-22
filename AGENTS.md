@@ -112,7 +112,12 @@ discount = total_amount - actual_amount（砍价金额，不计入成本，独�
 ### 商品价格语义（重要，避免认知偏差）
 - `price_single`：单独出售价格。普通商品=单品售价，bundle商品=合集售价（一口价），0=不单卖仅作子商品
 - `price_bundle`：作为子商品被收入合集时的优惠单价，bundle商品该字段为0
-- Token合集包：定价走 price_single（一口价38），成本遍历子商品 material_cost 求和
+- Token合集包：定价走 price_single（一口价39），成本遍历子商品 material_cost 求和
+
+**录单价格语义规则（重要，防误解）：**
+- 普通商品"合集价(price_bundle) vs 原价(price_single)"的差别**是邮费**——合集价 = 原价 − 省下的运费。用户在同一单里购买固定合集（如 Token合集包，已含一次运费）时，**同单里的普通商品按 price_bundle 合集价计价**；普通商品单独售卖时按 price_single。
+- **固定合集（category='bundle' 且内容固定、有整体一口价，如 Token合集包）永远按 price_single 计价**，不能被"订单出现多商品/多数量 → 改用 price_bundle"的启发式覆盖——它的 price_bundle 恒为 0。
+- 前端订单表单 `frontend/src/views/Orders.vue` 的 `recalcItemPrices()`：`category='bundle'` 固定合集 → 恒用 price_single；普通子商品 → 合集场景用 price_bundle、值无效(0/空)时回退 price_single。改动价格逻辑前务必先读此处注释（2026-08-22 修正 Token合集包混单归零问题）。
 ```
 > 注意：`print_recipes` 表**不存** `calculated_material_cost` / `unit_material_cost` 字段，成本全部实时查询计算。
 

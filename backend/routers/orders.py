@@ -232,6 +232,15 @@ def create_order(data: OrderCreate, db: Session = Depends(get_db)):
     # Auto-fill from settings
     _fill_order_defaults(data, db)
 
+    # P3: duplicate prevention — 补录/重复调用高发，按闲鱼单号幂等
+    if data.xianyu_order_id:
+        existing = db.query(Order).filter(Order.xianyu_order_id == data.xianyu_order_id).first()
+        if existing:
+            raise HTTPException(
+                400,
+                f"订单已存在 (订单号 {existing.order_no}，闲鱼号 {existing.xianyu_order_id})，请勿重复录入。如确需修正请编辑原订单。",
+            )
+
     # Upsert buyer
     buyer_id = _upsert_buyer(db, data.buyer_nickname, data.buyer_province)
 
@@ -549,7 +558,7 @@ def delete_order(order_id: int, db: Session = Depends(get_db)):
 def parse_order(data: ParseRequest, db: Session = Depends(get_db)):
     """Parse pasted 闲鱼 order text and match products."""
     raw_orders = parse_order_text(data.text)
-    matched = match_products(db, raw_orders)
+    matched, warnings = match_products(db, raw_orders)
 
     results = []
     errors = []
@@ -560,7 +569,7 @@ def parse_order(data: ParseRequest, db: Session = Depends(get_db)):
         except Exception as e:
             errors.append(f"解析失败: {e}")
 
-    return ParseResponse(orders=results, errors=errors)
+    return ParseResponse(orders=results, errors=errors, warnings=warnings)
 
 
 @router.post("/parse-structured", response_model=ParseResponse)
@@ -580,6 +589,8 @@ def parse_structured(data: StructuredParseRequest, db: Session = Depends(get_db)
             "total_amount": float(item.total_amount),
             "actual_amount": float(item.actual_amount),
             "quantity": item.quantity,
+            "unit_price": float(item.unit_price) if item.unit_price is not None else None,
+            "material_cost": float(item.material_cost) if item.material_cost is not None else None,
             "buyer_nickname": data.buyer_nickname,
             "buyer_name": None,
             "buyer_phone": None,
@@ -588,7 +599,7 @@ def parse_structured(data: StructuredParseRequest, db: Session = Depends(get_db)
             "shipping_free": True,
         })
 
-    matched = match_products(db, raw_orders)
+    matched, warnings = match_products(db, raw_orders)
 
     results = []
     errors = []
@@ -599,4 +610,4 @@ def parse_structured(data: StructuredParseRequest, db: Session = Depends(get_db)
         except Exception as e:
             errors.append(f"解析失败: {e}")
 
-    return ParseResponse(orders=results, errors=errors)
+    return ParseResponse(orders=results, errors=errors, warnings=warnings)
