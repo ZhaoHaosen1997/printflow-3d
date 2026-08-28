@@ -4,26 +4,33 @@
 
 - **项目名**：printflow-3d（3D打印商品管理工具 v2.0）
 - **定位**：个人闲鱼3D打印副业管理系统，覆盖商品/耗材/订单/买家/库存/打印任务/销售统计全链路
-- **运行环境**：Raspberry Pi（Debian aarch64，内网部署）
-- **访问方式**：浏览器 → `http://192.168.10.10:8848`
+- **运行环境**：个人电脑 WSL2（发行版 `DebianDev`，Debian 13，内网部署；树莓派已退役，2026-08 CF500 故障后不再重建）
+- **访问方式**：浏览器 → `http://192.168.10.20:8848`（WSL 镜像网络，与 Windows 同 IP）
 - **Git 仓库**：
-  - forgejo（私服）：`http://192.168.10.10:3000/zhaohaosen/printflow-3d.git`
+  - gitee（主远程，SSH）：`git@gitee.com:ZhaoHaosen1997/printflow-3d.git`（原 Forgejo 私服已弃用，2026-08-28 迁移）
   - origin（GitHub）：`https://github.com/ZhaoHaosen1997/printflow-3d.git`
 
 ---
 
 ## 部署方式
 
-### 树莓派部署（Git 拉取模式）
+### WSL 部署（rsync 同步模式）
 
-Pi 上项目目录已初始化为 git 仓库，remote `origin` 指向本地 forgejo 私服。
+生产环境为 WSL `/home/zhaohaosen/applications/printflow-3d/`，代码由 Windows 侧 rsync 同步（不依赖远端 git pull）。
 
 **部署流程**：
-1. 本地开发测试通过 → `git push forgejo master`
-2. SSH 到 Pi：`git pull origin master`
-3. 如有后端依赖变更：`~/.venvs/printflow/bin/pip install -r requirements.txt`
-4. 如有前端变更：`cd frontend && npm run build`
-5. 重启服务：`sudo systemctl restart printflow`
+1. 本地开发测试通过 → `git push gitee master`
+2. rsync 同步到 WSL（排除生产数据）：
+   ```bash
+   MSYS_NO_PATHCONV=1 wsl -d DebianDev -- rsync -av \
+     --exclude='data/' --exclude='logs/' --exclude='venv/' \
+     --exclude='node_modules/' --exclude='.git' \
+     --exclude='__pycache__' --exclude='.workbuddy' \
+     /mnt/c/mycode/printflow-3d/ /home/zhaohaosen/applications/printflow-3d/
+   ```
+3. 如有后端依赖变更：`wsl -d DebianDev -- ~/.venvs/printflow/bin/pip install -r requirements.txt`
+4. 如有前端变更：本地 `cd frontend && npm run build`，构建产物随 rsync 一并同步
+5. 重启服务：`MSYS_NO_PATHCONV=1 wsl -d DebianDev -- sudo systemctl restart printflow`
 
 **首次部署新依赖**（如 playwright）需额外执行：
 ```bash
@@ -38,9 +45,9 @@ PrintFlow 的 MCP 工具（`mcp/server.py`）**不是** printflow.service 的一
 
 - Hermes gateway 本身是 systemd 服务 `hermes-gateway.service`（命令 `python -m hermes_cli.main gateway run`），管理 CLI：`hermes gateway start|stop|restart|status`。
 - gateway 启动时通过 `mcp_stdio_watchdog.py`（parent-death 监督器）派生 MCP server：`<watchdog> --ppid <gateway_pid> -- .../printflow-3d/mcp/server.py`。该 watchdog **只**在 gateway 进程死亡时杀掉子进程，**不是** respawn/重连锁。
-- `mcp/server.py` 是 Python 代码，改它并部署到 Pi 后**必须重载 MCP server 才生效**（进程内存里仍是旧代码）。
+- `mcp/server.py` 是 Python 代码，改它并部署到 WSL 后**必须重载 MCP server 才生效**（进程内存里仍是旧代码）。
 
-**何时需要重载**：每次修改 `mcp/server.py` 并部署到 Pi 后。
+**何时需要重载**：每次修改 `mcp/server.py` 并部署到 WSL 后。
 
 **重载方式（二选一）**：
 1. **立即、干净（推荐）**——重启 Hermes gateway，会重新派生全部 MCP（含 printflow 与 usage-data-viewer），加载新代码：
@@ -65,7 +72,7 @@ PrintFlow 的 MCP 工具（`mcp/server.py`）**不是** printflow.service 的一
 - **SQLite**（单用户，`data/app.db`），预留一键切换 PostgreSQL
 - **Jinja2** + **Playwright**：商品长图生成（HTML渲染→无头截图→PNG）
 - **前端直挂**：FastAPI 内置 `FileResponse` 挂载 `frontend/dist/`，无需 Nginx
-- **systemd**：Raspberry Pi 开机自启，暂不引入 Redis
+- **systemd**：WSL 内开机自启，暂不引入 Redis
 
 ### 前端
 - **Vue 3** (Composition API) + **Vite 6** + **TailwindCSS 3** + **Lucide Icons**
@@ -96,7 +103,7 @@ printflow-3d/
 ├── data/app.db
 ├── requirements.txt
 ├── deploy.sh         # rsync 部署脚本（旧，备用）
-├── start.sh / stop.sh # Pi 服务启停（SSH）
+├── start.sh / stop.sh # WSL 服务启停
 └── printflow.service # systemd 服务文件
 ```
 
@@ -204,7 +211,7 @@ discount = total_amount - actual_amount（砍价金额，不计入成本，独�
 ## 开发铁律
 
 1. **每次只做一个版本**，完成并测试通过后再推进下一版本
-2. 先在 Windows 环境测试，再部署树莓派
+2. 先在 Windows 环境测试，再部署 WSL
 3. 测试通过后 git commit，版本号按实际修改内容自动生成
 4. 优先开发核心差异化功能：粘贴导入订单
 5. 后端：路由层只做分发，业务逻辑全放 services 层
@@ -217,7 +224,7 @@ discount = total_amount - actual_amount（砍价金额，不计入成本，独�
     - `frontend/src/components/Sidebar.vue` 中版本号显示文本
     - `backend/main.py` 中 `FastAPI(title="PrintFlow-3D", version="...")`
 12. **提交规范**：一个版本一个提交，小型修复用 `git commit --amend` 合并到上一次提交，避免提交记录碎片化
-13. **amend 后推送**：amend 会改写历史，推送时需 `git push forgejo master --force`；Pi 上需 `git fetch origin && git reset --hard origin/master` 同步（`data/` 在 .gitignore 中不受影响）
+13. **amend 后推送**：amend 会改写历史，推送时需 `git push gitee master --force`；WSL 侧用 rsync 重新同步即可（`data/` 已在 rsync 排除列表，不受影响）
 14. **log_business 禁用 `category` 关键字**：`_log()` 内部参数名是 `category`，kwargs 里传 `category=xxx` 会冲突报错。改用 `product_category`/`poster_category` 等别名
 
 ---
@@ -243,7 +250,7 @@ discount = total_amount - actual_amount（砍价金额，不计入成本，独�
 当用户说"帮我推送远程仓库 / 推送 github"时：
 1. `git add` 所有变更文件（不含 .env、node_modules、__pycache__、.venv）
 2. `git commit`，提交信息概括本轮改动要点（中文，一行）
-3. `git push forgejo master`（私服优先）
+3. `git push gitee master`（Gitee 优先）
 4. `git push origin master`（GitHub，网络通时）
 
 ### 操作按钮五种风格（按语义选用）

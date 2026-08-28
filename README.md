@@ -194,4 +194,4 @@ git pull origin master
 | v1.15.1 | UI 修复：主题色改通道式定义（/opacity 恢复生效）+ 语义色 token（success/danger/warning/info）+ LogViewer 接入主题 + 浅色主题对比度提升 |
 | v1.15.2 | UI 打磨：全局 focus-visible 焦点环 + prefers-reduced-motion 降级 + 移动端 44px 触控目标 + SemanticBadge 徽章组件收敛 + StatusBadge 去重 |
 
-> 当前生产环境已迁移至 Raspberry Pi（内网 `http://192.168.10.10:8848`），部署/版本迭代细节见 AGENTS.md。
+> 当前生产环境为个人电脑 WSL（内网 `http://192.168.10.20:8848`，树莓派已退役 2026-08），部署/版本迭代细节见 AGENTS.md。
