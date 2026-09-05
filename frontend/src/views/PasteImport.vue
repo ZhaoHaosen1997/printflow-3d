@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { Sparkles, Save, Check, X, AlertTriangle } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
+import { ORDER_STATUS as statusLabel } from '../constants/orderStatus'
 import StatusBadge from '../components/StatusBadge.vue'
 import SemanticBadge from '../components/SemanticBadge.vue'
 
@@ -110,11 +111,7 @@ function clearAll() {
   savedIds.value = new Set()
 }
 
-const statusLabel = {
-  pending_ship: '待发货',
-  shipped: '已发货',
-  completed: '交易成功',
-}
+
 </script>
 
 <template>

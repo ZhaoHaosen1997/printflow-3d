@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Truck, AlertTriangle, TrendingUp, Printer, RefreshCw } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
+import { formatMoney as formatCurrency } from '../utils/format'
 import StatusBadge from '../components/StatusBadge.vue'
 
 const { get } = useApi()
@@ -22,11 +23,6 @@ async function fetchSummary() {
 
 function goTo(path) {
   router.push(path)
-}
-
-function formatCurrency(val) {
-  if (val == null) return '¥0.00'
-  return `¥${Number(val).toFixed(2)}`
 }
 
 function formatDate(dt) {

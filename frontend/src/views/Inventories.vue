@@ -2,7 +2,9 @@
 import { ref, onMounted, computed } from 'vue'
 import { Plus, X, Check } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
+import { formatCategory } from '../utils/format'
 import DataTable from '../components/DataTable.vue'
+import ModalShell from '../components/ModalShell.vue'
 import SemanticBadge from '../components/SemanticBadge.vue'
 
 const { loading, get, put, post } = useApi()
@@ -16,13 +18,6 @@ const form = ref({
   quantity: 0,
   warning_threshold: 5,
 })
-
-const categoryMap = {
-  counter: '计数器',
-  token: '指示物',
-  other: '其他',
-  bundle: '合集',
-}
 
 const stats = computed(() => {
   const total = inventories.value.length
@@ -156,21 +151,12 @@ onMounted(fetchInventories)
     </DataTable>
 
     <!-- Edit Modal -->
-    <Teleport to="body">
-      <div
-        v-if="modalVisible"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-        @mousedown.self="modalVisible = false"
-      >
-        <div class="bg-dark-card border border-border-main rounded-lg shadow-2xl w-full max-w-md mx-4">
-          <div class="flex items-center justify-between px-6 py-4 border-b border-border-inner">
-            <h3 class="text-lg font-serif text-gold-title">
-              调整库存 — {{ editingItem?.product_name }}
-            </h3>
-            <button class="text-gray-500 hover:text-gray-300" @click="modalVisible = false">
-              <X class="w-5 h-5" />
-            </button>
-          </div>
+    <ModalShell
+      v-if="modalVisible"
+      :title="`调整库存 — ${editingItem?.product_name || ''}`"
+      width="max-w-md"
+      @close="modalVisible = false"
+    >
 
           <form @submit.prevent="handleSubmit" class="px-6 py-4 space-y-4">
             <div>
@@ -210,8 +196,6 @@ onMounted(fetchInventories)
               {{ saving ? '保存中...' : '保存' }}
             </button>
           </div>
-        </div>
-      </div>
-    </Teleport>
+    </ModalShell>
   </div>
 </template>

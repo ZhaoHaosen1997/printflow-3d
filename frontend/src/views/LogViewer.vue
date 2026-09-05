@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { RefreshCw, Search, X, HardDrive } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
+import { toggleItem } from '../utils/array'
 
 const { get } = useApi()
 
@@ -39,9 +40,7 @@ const levelBg = {
 }
 
 function toggle(arr, val) {
-  const idx = arr.indexOf(val)
-  if (idx >= 0) arr.splice(idx, 1)
-  else arr.push(val)
+  toggleItem(arr, val)
 }
 
 function has(arr, val) {

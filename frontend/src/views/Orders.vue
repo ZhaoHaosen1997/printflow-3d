@@ -4,7 +4,10 @@ import { useRoute } from 'vue-router'
 import { Plus, X, Search, Download } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
 import { useToast } from '../composables/useToast'
+import { ORDER_STATUS as orderStatusLabelMap, SOURCE_LABELS } from '../constants/orderStatus'
+import PaginationBar from '../components/PaginationBar.vue'
 import DataTable from '../components/DataTable.vue'
+import ModalShell from '../components/ModalShell.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 
 const { loading, get, post, put, del } = useApi()
@@ -21,11 +24,9 @@ const actualAuto = ref(true)
 
 const statuses = [
   { value: '', label: '全部状态' },
-  { value: 'pending_ship', label: '待发货' },
-  { value: 'shipped', label: '已发货' },
-  { value: 'completed', label: '交易成功' },
-  { value: 'cancelled', label: '已取消' },
-  { value: 'returned', label: '退货' },
+  ...Object.entries(orderStatusLabelMap)
+    .filter(([key]) => key !== 'archived')
+    .map(([value, label]) => ({ value, label })),
 ]
 
 const filters = ref({
@@ -465,7 +466,7 @@ onMounted(() => {
       </template>
       <template #cell-source="{ value }">
         <span class="text-xs px-2 py-0.5 rounded bg-dark-input text-gray-400">
-          {{ { paste_import: '粘贴导入', manual: '手动', wechat: '微信', migrated: '旧版导入', image_import: '识图导入' }[value] || value }}
+          {{ SOURCE_LABELS[value] || value }}
         </span>
       </template>
       <template #cell-order_time="{ value }">
@@ -477,43 +478,22 @@ onMounted(() => {
     </DataTable>
 
     <!-- Pagination -->
-    <div v-if="totalOrders > 0" class="flex items-center justify-between mt-4 text-sm text-gray-400">
-      <div>共 {{ totalOrders }} 条订单</div>
-      <div class="flex items-center gap-3">
-        <button
-          class="px-3 py-1.5 rounded border border-border-inner hover:bg-dark-card hover:text-gray-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          :disabled="currentPage <= 1"
-          @click="goPage(currentPage - 1)"
-        >
-          上一页
-        </button>
-        <span class="text-gray-200">{{ currentPage }} / {{ totalPages }}</span>
-        <button
-          class="px-3 py-1.5 rounded border border-border-inner hover:bg-dark-card hover:text-gray-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          :disabled="currentPage >= totalPages"
-          @click="goPage(currentPage + 1)"
-        >
-          下一页
-        </button>
-      </div>
-    </div>
+    <PaginationBar
+      v-if="totalOrders > 0"
+      :page="currentPage"
+      :total-pages="totalPages"
+      :total="totalOrders"
+      unit="条订单"
+      @go="goPage"
+    />
 
     <!-- Order Form Modal -->
-    <Teleport to="body">
-      <div
-        v-if="modalVisible"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-        @mousedown.self="modalVisible = false"
-      >
-        <div class="bg-dark-card border border-border-main rounded-lg shadow-2xl w-full max-w-3xl mx-4 max-h-[90vh] flex flex-col">
-          <div class="flex items-center justify-between px-6 py-4 border-b border-border-inner">
-            <h3 class="text-lg font-serif text-gold-title">
-              {{ editingOrder ? '编辑订单' : '新增订单' }}
-            </h3>
-            <button class="text-gray-500 hover:text-gray-300" @click="modalVisible = false">
-              <X class="w-5 h-5" />
-            </button>
-          </div>
+    <ModalShell
+      v-if="modalVisible"
+      :title="editingOrder ? '编辑订单' : '新增订单'"
+      width="max-w-3xl"
+      @close="modalVisible = false"
+    >
 
           <form @submit.prevent="handleSubmit" class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             <!-- Row 1: Order Time + Buyer + Xianyu ID -->
@@ -630,8 +610,6 @@ onMounted(() => {
               {{ orderSaving ? '保存中...' : '保存' }}
             </button>
           </div>
-        </div>
-      </div>
-    </Teleport>
+    </ModalShell>
   </div>
 </template>

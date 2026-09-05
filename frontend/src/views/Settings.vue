@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { Save, Plus, Pencil, Trash2, X, Check } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
+import { useSimpleCrud } from '../composables/useSimpleCrud'
 
 const { loading, get, put, post, del } = useApi()
 const settings = ref([])
@@ -53,113 +54,27 @@ async function saveSetting(item) {
   }
 }
 
-// ============ Games Management ============
+// ============ Games / Categories Management（useSimpleCrud 收敛两段复制粘贴） ============
 
-const games = ref([])
-const gameEditing = ref(null)
-const gameForm = ref({ name: '', slug: '', icon: '', sort_order: 0 })
-const gameSaving = ref(false)
+const {
+  items: games, editingId: gameEditing, form: gameForm, saving: gameSaving,
+  fetchItems: fetchGames, startEdit: startEditGame, cancelEdit: cancelEditGame,
+  saveItem: saveGame, createItem: createGame, archiveItem: archiveGame,
+} = useSimpleCrud('games', {
+  label: '游戏',
+  emptyForm: { name: '', slug: '', icon: '', sort_order: 0 },
+  toForm: (g) => ({ name: g.name, slug: g.slug, icon: g.icon || '', sort_order: g.sort_order }),
+})
 
-async function fetchGames() {
-  games.value = await get('/api/games')
-}
-
-function startEditGame(game) {
-  gameEditing.value = game.id
-  gameForm.value = { name: game.name, slug: game.slug, icon: game.icon || '', sort_order: game.sort_order }
-}
-
-function cancelEditGame() {
-  gameEditing.value = null
-  gameForm.value = { name: '', slug: '', icon: '', sort_order: 0 }
-}
-
-async function saveGame(game) {
-  gameSaving.value = true
-  try {
-    await put(`/api/games/${game.id}`, gameForm.value)
-    gameEditing.value = null
-    await fetchGames()
-  } catch {
-    // 失败已由 useApi 全局 toast 提示
-  } finally {
-    gameSaving.value = false
-  }
-}
-
-async function createGame() {
-  if (!gameForm.value.name || !gameForm.value.slug) return
-  gameSaving.value = true
-  try {
-    await post('/api/games', gameForm.value)
-    gameForm.value = { name: '', slug: '', icon: '', sort_order: 0 }
-    await fetchGames()
-  } catch {
-    // 失败已由 useApi 全局 toast 提示
-  } finally {
-    gameSaving.value = false
-  }
-}
-
-async function archiveGame(game) {
-  if (!confirm(`确定归档游戏 "${game.name}"？`)) return
-  await del(`/api/games/${game.id}`)
-  await fetchGames()
-}
-
-// ============ Categories Management ============
-
-const categories = ref([])
-const catEditing = ref(null)
-const catForm = ref({ name: '', slug: '', sort_order: 0 })
-const catSaving = ref(false)
-
-async function fetchCategories() {
-  categories.value = await get('/api/categories')
-}
-
-function startEditCat(cat) {
-  catEditing.value = cat.id
-  catForm.value = { name: cat.name, slug: cat.slug, sort_order: cat.sort_order }
-}
-
-function cancelEditCat() {
-  catEditing.value = null
-  catForm.value = { name: '', slug: '', sort_order: 0 }
-}
-
-async function saveCat(cat) {
-  catSaving.value = true
-  try {
-    await put(`/api/categories/${cat.id}`, catForm.value)
-    catEditing.value = null
-    await fetchCategories()
-  } catch {
-    // 失败已由 useApi 全局 toast 提示
-  } finally {
-    catSaving.value = false
-  }
-}
-
-async function createCat() {
-  if (!catForm.value.name || !catForm.value.slug) return
-  catSaving.value = true
-  try {
-    await post('/api/categories', catForm.value)
-    catForm.value = { name: '', slug: '', sort_order: 0 }
-    await fetchCategories()
-  } catch {
-    // 失败已由 useApi 全局 toast 提示
-  } finally {
-    catSaving.value = false
-  }
-}
-
-async function archiveCat(cat) {
-  if (!confirm(`确定归档分类 "${cat.name}"？`)) return
-  await del(`/api/categories/${cat.id}`)
-  await fetchCategories()
-}
+const {
+  items: categories, editingId: catEditing, form: catForm, saving: catSaving,
+  fetchItems: fetchCategories, startEdit: startEditCat, cancelEdit: cancelEditCat,
+  saveItem: saveCat, createItem: createCat, archiveItem: archiveCat,
+} = useSimpleCrud('categories', {
+  label: '分类',
+  emptyForm: { name: '', slug: '', sort_order: 0 },
+  toForm: (c) => ({ name: c.name, slug: c.slug, sort_order: c.sort_order }),
+})
 
 onMounted(() => {
   fetchSettings()

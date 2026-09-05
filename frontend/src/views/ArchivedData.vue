@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { Trash2, AlertTriangle } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
+import { formatMoney as formatAmount, formatDateTime as formatTime, formatCategory } from '../utils/format'
 
 const { get, del } = useApi()
 
@@ -96,21 +97,6 @@ async function doDelete() {
   } finally {
     deleting.value = false
   }
-}
-
-function categoryLabel(cat) {
-  const map = { counter: '计数器', token: '指示物', other: '其他', bundle: '合集' }
-  return map[cat] || cat
-}
-
-function formatTime(val) {
-  if (!val) return '-'
-  return val.slice(0, 16).replace('T', ' ')
-}
-
-function formatAmount(val) {
-  if (val == null) return '-'
-  return `¥${Number(val).toFixed(2)}`
 }
 
 const totalCount = computed(() =>

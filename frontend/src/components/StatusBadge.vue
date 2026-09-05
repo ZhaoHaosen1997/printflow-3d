@@ -4,6 +4,8 @@ defineProps({
   size: { type: String, default: 'sm' },
 })
 
+import { ORDER_STATUS } from '../constants/orderStatus'
+
 const statusMap = {
   active:       { cls: 'badge-success', label: '启用' },
   standard:     { cls: 'badge-info',    label: '标准色' },

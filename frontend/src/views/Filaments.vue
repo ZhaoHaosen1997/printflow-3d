@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { Plus, X } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
 import DataTable from '../components/DataTable.vue'
+import ModalShell from '../components/ModalShell.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 
 const { loading, get, post, put, del } = useApi()
@@ -141,21 +142,12 @@ onMounted(fetchFilaments)
     </DataTable>
 
     <!-- Custom Modal -->
-    <Teleport to="body">
-      <div
-        v-if="modalVisible"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-        @mousedown.self="modalVisible = false"
-      >
-        <div class="bg-dark-card border border-border-main rounded-lg shadow-2xl w-full max-w-lg mx-4">
-          <div class="flex items-center justify-between px-6 py-4 border-b border-border-inner">
-            <h3 class="text-lg font-serif text-gold-title">
-              {{ editingFilament ? '编辑耗材' : '新增耗材' }}
-            </h3>
-            <button class="text-gray-500 hover:text-gray-300" @click="modalVisible = false">
-              <X class="w-5 h-5" />
-            </button>
-          </div>
+    <ModalShell
+      v-if="modalVisible"
+      :title="editingFilament ? '编辑耗材' : '新增耗材'"
+      width="max-w-lg"
+      @close="modalVisible = false"
+    >
 
           <form @submit.prevent="handleSubmit" class="px-6 py-4 space-y-4">
             <div>
@@ -224,8 +216,6 @@ onMounted(fetchFilaments)
               {{ saving ? '保存中...' : '保存' }}
             </button>
           </div>
-        </div>
-      </div>
-    </Teleport>
+    </ModalShell>
   </div>
 </template>

@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { Plus, Pencil, Trash2, X } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
+import ModalShell from '../components/ModalShell.vue'
 
 const { get, post, put, del } = useApi()
 
@@ -224,21 +225,12 @@ onMounted(fetchColors)
     </div>
 
     <!-- Color Edit Modal -->
-    <Teleport to="body">
-      <div
-        v-if="modalVisible"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-        @mousedown.self="modalVisible = false"
-      >
-        <div class="bg-dark-card border border-border-main rounded-lg shadow-2xl w-full max-w-lg mx-4 max-h-[85vh] flex flex-col">
-          <div class="flex items-center justify-between px-6 py-4 border-b border-border-inner">
-            <h3 class="text-lg font-serif text-gold-title">
-              {{ editingColor ? '编辑颜色' : '新增颜色' }}
-            </h3>
-            <button class="text-gray-500 hover:text-gray-300" @click="modalVisible = false">
-              <X class="w-5 h-5" />
-            </button>
-          </div>
+    <ModalShell
+      v-if="modalVisible"
+      :title="editingColor ? '编辑颜色' : '新增颜色'"
+      width="max-w-lg"
+      @close="modalVisible = false"
+    >
 
           <form @submit.prevent="handleSubmit" class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             <!-- name -->
@@ -359,9 +351,7 @@ onMounted(fetchColors)
               {{ saving ? '保存中...' : '保存' }}
             </button>
           </div>
-        </div>
-      </div>
-    </Teleport>
+    </ModalShell>
   </div>
 </template>
 

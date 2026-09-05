@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { TrendingUp, DollarSign, ShoppingCart, Users, Receipt } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
+import { formatMoney as formatCurrency, formatCategory as categoryLabel } from '../utils/format'
 import { useBreakpoint } from '../composables/useBreakpoint'
 import { Bar, Doughnut } from 'vue-chartjs'
 import {
@@ -176,16 +177,6 @@ const chartOptions = computed(() => ({
     y: { ticks: { color: '#6b7280', callback: v => `¥${v}` }, grid: { color: 'rgba(107,114,128,0.1)' } },
   },
 }))
-
-function formatCurrency(val) {
-  if (val == null) return '-'
-  return `¥${Number(val).toFixed(2)}`
-}
-
-function categoryLabel(cat) {
-  const map = { counter: '计数器', token: '指示物', other: '其他', bundle: '合集' }
-  return map[cat] || cat
-}
 
 watch(year, fetchAll)
 watch(productSort, fetchByProduct)

@@ -3,7 +3,11 @@ import { ref, onMounted, computed } from 'vue'
 import { Plus, X } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
 import DataTable from '../components/DataTable.vue'
+import ModalShell from '../components/ModalShell.vue'
 import SemanticBadge from '../components/SemanticBadge.vue'
+import PaginationBar from '../components/PaginationBar.vue'
+import { TASK_STATUS } from '../constants/orderStatus'
+import { formatDateTime as formatTime } from '../utils/format'
 
 const { loading, get, post, put } = useApi()
 
@@ -19,13 +23,10 @@ const products = ref([])
 const selectedRecipeId = ref(null)
 const newTaskNotes = ref('')
 
-const statusConfig = {
-  pending:   { label: '待处理',  tone: 'neutral' },
-  printing:  { label: '打印中',  tone: 'info' },
-  done:      { label: '已完成',  tone: 'success' },
-  failed:    { label: '失败',    tone: 'danger' },
-  cancelled: { label: '已取消',  tone: 'warning' },
-}
+const STATUS_TONES = { pending: 'neutral', printing: 'info', done: 'success', failed: 'danger', cancelled: 'warning' }
+const statusConfig = Object.fromEntries(
+  Object.entries(TASK_STATUS).map(([key, label]) => [key, { tone: STATUS_TONES[key], label }])
+)
 
 const statusTabs = [
   { value: '', label: '全部' },
@@ -140,12 +141,6 @@ async function cancelTask(id) {
   }
 }
 
-function formatTime(val) {
-  if (val == null) return '-'
-  if (typeof val === 'string') return val.slice(0, 16).replace('T', ' ')
-  return val
-}
-
 function formatPrintTime(val) {
   if (val == null) return '-'
   if (val < 60) return `${val}分钟`
@@ -233,45 +228,23 @@ onMounted(() => {
       </template>
     </DataTable>
 
-    <!-- Simple pagination -->
-    <div v-if="total > pageSize" class="flex items-center justify-between mt-4 text-sm">
-      <span class="text-gray-500">
-        第 {{ page }} 页 / 共 {{ Math.ceil(total / pageSize) }} 页
-      </span>
-      <div class="flex gap-2">
-        <button
-          class="px-3 py-1.5 rounded-md bg-dark-card border border-border-inner text-gray-400
-                 hover:text-gray-200 hover:bg-dark-input transition-colors disabled:opacity-40"
-          :disabled="page <= 1"
-          @click="page--; fetchTasks()"
-        >
-          上一页
-        </button>
-        <button
-          class="px-3 py-1.5 rounded-md bg-dark-card border border-border-inner text-gray-400
-                 hover:text-gray-200 hover:bg-dark-input transition-colors disabled:opacity-40"
-          :disabled="page * pageSize >= total"
-          @click="page++; fetchTasks()"
-        >
-          下一页
-        </button>
-      </div>
-    </div>
+    <!-- Pagination -->
+    <PaginationBar
+      v-if="total > pageSize"
+      :page="page"
+      :total-pages="Math.ceil(total / pageSize)"
+      :total="total"
+      unit="个任务"
+      @go="p => { page = p; fetchTasks() }"
+    />
 
     <!-- Create Modal -->
-    <Teleport to="body">
-      <div
-        v-if="createModalVisible"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-        @mousedown.self="createModalVisible = false"
-      >
-        <div class="bg-dark-card border border-border-main rounded-lg shadow-2xl w-full max-w-lg mx-4">
-          <div class="flex items-center justify-between px-6 py-4 border-b border-border-inner">
-            <h3 class="text-lg font-serif text-gold-title">创建打印任务</h3>
-            <button class="text-gray-500 hover:text-gray-300" @click="createModalVisible = false">
-              <X class="w-5 h-5" />
-            </button>
-          </div>
+    <ModalShell
+      v-if="createModalVisible"
+      title="创建打印任务"
+      width="max-w-lg"
+      @close="createModalVisible = false"
+    >
 
           <div class="px-6 py-4 space-y-4">
             <div>
@@ -336,8 +309,6 @@ onMounted(() => {
               {{ creating ? '创建中...' : '创建任务' }}
             </button>
           </div>
-        </div>
-      </div>
-    </Teleport>
+    </ModalShell>
   </div>
 </template>

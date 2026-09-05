@@ -2,7 +2,11 @@
 import { ref, onMounted, computed } from 'vue'
 import { Search, X, Edit, User, MapPin, ShoppingBag, Calendar } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
+import { toggleItem } from '../utils/array'
+import { formatMoney as formatAmount, formatDateTime as formatTime } from '../utils/format'
+import PaginationBar from '../components/PaginationBar.vue'
 import DataTable from '../components/DataTable.vue'
+import ModalShell from '../components/ModalShell.vue'
 import SemanticBadge, { toneClasses } from '../components/SemanticBadge.vue'
 
 const { loading, get, put } = useApi()
@@ -43,13 +47,16 @@ const columns = [
   { key: 'last_order_time', label: '最近下单', sortable: true, mobileLabel: '最近' },
 ]
 
-const statusConfig = {
-  pending_ship: { label: '待发货', tone: 'warning' },
-  shipped: { label: '已发货', tone: 'info' },
-  completed: { label: '交易成功', tone: 'success' },
-  cancelled: { label: '已取消', tone: 'neutral' },
-  returned: { label: '退货', tone: 'danger' },
+// 状态映射：label 来自共享常量，tone 为本页 SemanticBadge 语义
+import { ORDER_STATUS } from '../constants/orderStatus'
+
+const STATUS_TONES = {
+  pending_ship: 'warning', shipped: 'info', completed: 'success',
+  cancelled: 'neutral', returned: 'danger', archived: 'neutral',
 }
+const statusConfig = Object.fromEntries(
+  Object.entries(ORDER_STATUS).map(([key, lbl]) => [key, { tone: STATUS_TONES[key] || 'neutral', label: lbl }])
+)
 
 const actions = [
   { label: '详情', handler: openDetail, class: 'btn-outline' },
@@ -103,23 +110,7 @@ async function handleSave() {
 }
 
 function toggleTag(tag) {
-  const idx = editForm.value.tags.indexOf(tag)
-  if (idx >= 0) {
-    editForm.value.tags.splice(idx, 1)
-  } else {
-    editForm.value.tags.push(tag)
-  }
-}
-
-function formatTime(val) {
-  if (!val) return '-'
-  if (typeof val === 'string') return val.slice(0, 16).replace('T', ' ')
-  return val
-}
-
-function formatAmount(val) {
-  if (val == null) return '-'
-  return `¥${Number(val).toFixed(2)}`
+  toggleItem(editForm.value.tags, tag)
 }
 
 function getTagTone(tag) {
@@ -196,25 +187,14 @@ onMounted(fetchBuyers)
     </DataTable>
 
     <!-- Pagination -->
-    <div v-if="total > pageSize" class="flex items-center justify-between mt-4 text-sm">
-      <span class="text-gray-500">
-        第 {{ page }} 页 / 共 {{ Math.ceil(total / pageSize) }} 页
-      </span>
-      <div class="flex gap-2">
-        <button
-          class="px-3 py-1.5 rounded-md bg-dark-card border border-border-inner text-gray-400
-                 hover:text-gray-200 hover:bg-dark-input transition-colors disabled:opacity-40"
-          :disabled="page <= 1"
-          @click="page--; fetchBuyers()"
-        >上一页</button>
-        <button
-          class="px-3 py-1.5 rounded-md bg-dark-card border border-border-inner text-gray-400
-                 hover:text-gray-200 hover:bg-dark-input transition-colors disabled:opacity-40"
-          :disabled="page * pageSize >= total"
-          @click="page++; fetchBuyers()"
-        >下一页</button>
-      </div>
-    </div>
+    <PaginationBar
+      v-if="total > pageSize"
+      :page="page"
+      :total-pages="Math.ceil(total / pageSize)"
+      :total="total"
+      unit="位买家"
+      @go="p => { page = p; fetchBuyers() }"
+    />
 
     <!-- Detail Slide-over -->
     <Teleport to="body">
@@ -320,19 +300,12 @@ onMounted(fetchBuyers)
     </Teleport>
 
     <!-- Edit Modal -->
-    <Teleport to="body">
-      <div
-        v-if="editModalVisible"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-        @mousedown.self="editModalVisible = false"
-      >
-        <div class="bg-dark-card border border-border-main rounded-lg shadow-2xl w-full max-w-md mx-4">
-          <div class="flex items-center justify-between px-6 py-4 border-b border-border-inner">
-            <h3 class="text-lg font-serif text-gold-title">编辑买家 — {{ editingBuyer?.nickname }}</h3>
-            <button class="text-gray-500 hover:text-gray-300" @click="editModalVisible = false">
-              <X class="w-5 h-5" />
-            </button>
-          </div>
+    <ModalShell
+      v-if="editModalVisible"
+      :title="`编辑买家 — ${editingBuyer?.nickname || ''}`"
+      width="max-w-md"
+      @close="editModalVisible = false"
+    >
 
           <div class="px-6 py-4 space-y-4">
             <!-- Tags -->
@@ -390,8 +363,6 @@ onMounted(fetchBuyers)
               @click="handleSave"
             >{{ saving ? '保存中...' : '保存' }}</button>
           </div>
-        </div>
-      </div>
-    </Teleport>
+    </ModalShell>
   </div>
 </template>
