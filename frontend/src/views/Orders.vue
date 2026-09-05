@@ -20,6 +20,7 @@ const currentPage = ref(1)
 const pageSize = ref(30)
 const products = ref([])
 const settings = ref({})
+const stockMap = ref({})
 const actualAuto = ref(true)
 
 const statuses = [
@@ -102,6 +103,13 @@ async function fetchAll() {
   const sm = {}
   sett.forEach(s => { sm[s.key] = s.value })
   settings.value = sm
+  // 库存映射：仅用于保存后的"无库存"提示，不拦截下单
+  try {
+    const invs = await get('/api/inventories')
+    const im = {}
+    invs.forEach(i => { im[i.product_id] = i.quantity })
+    stockMap.value = im
+  } catch { /* 库存提示属辅助信息，拉取失败不阻塞 */ }
 }
 
 function applyFilters() {
@@ -331,6 +339,22 @@ async function handleSubmit() {
       await put(`/api/orders/${editingOrder.value.id}`, payload)
     } else {
       await post('/api/orders', payload)
+    }
+    // 库存不足不拦截下单，仅在保存后提示（订单已按无库存记录）
+    if (!editingOrder.value) {
+      const need = {}
+      payload.items.forEach(it => {
+        need[it.product_id] = (need[it.product_id] || 0) + (it.quantity || 1)
+      })
+      const shortages = Object.entries(need)
+        .filter(([pid, qty]) => (stockMap.value[pid] ?? 0) < qty)
+        .map(([pid, qty]) => {
+          const name = payload.items.find(it => it.product_id === Number(pid))?.product_name || `商品#${pid}`
+          return `「${name}」库存 ${stockMap.value[pid] ?? 0}，需 ${qty}`
+        })
+      if (shortages.length) {
+        toast.warning(`库存不足：${shortages.join('；')}，订单已保存，请尽快补货打印`)
+      }
     }
     modalVisible.value = false
     await fetchAll()

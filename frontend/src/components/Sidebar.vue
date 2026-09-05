@@ -76,7 +76,7 @@ function isActive(item) {
   >
     <div class="p-5 border-b border-border-inner">
       <h1 class="text-xl font-serif text-gold-title tracking-wide">PrintFlow 3D</h1>
-      <p class="text-xs text-gold-muted mt-1">v1.21.0</p>
+      <p class="text-xs text-gold-muted mt-1">v1.21.1</p>
     </div>
     <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
       <router-link

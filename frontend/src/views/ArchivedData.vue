@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { Trash2, AlertTriangle } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
-import { formatMoney as formatAmount, formatDateTime as formatTime, formatCategory } from '../utils/format'
+import { formatMoney as formatAmount, formatDateTime as formatTime, formatCategory as categoryLabel } from '../utils/format'
 
 const { get, del } = useApi()
 

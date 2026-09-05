@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from backend.crud_utils import apply_update, get_or_404
 from backend.database import get_db
@@ -18,7 +19,7 @@ def list_inventories(db: Session = Depends(get_db)):
     """List all active products with their inventory status."""
     products = (
         db.query(Product)
-        .filter(Product.status == "active", Product.category != "bundle")
+        .filter(Product.status == "active", or_(Product.category != "bundle", Product.category.is_(None)))
         .order_by(Product.category, Product.name)
         .all()
     )
@@ -30,7 +31,7 @@ def list_inventories(db: Session = Depends(get_db)):
             "id": inv.id,
             "product_id": p.id,
             "product_name": p.name,
-            "product_category": p.category,
+            "product_category": p.category or "other",
             "quantity": inv.quantity,
             "warning_threshold": inv.warning_threshold,
             "created_at": inv.created_at,
@@ -66,7 +67,7 @@ def update_inventory(inventory_id: int, data: InventoryUpdate, db: Session = Dep
 @router.post("/ensure-all", response_model=MessageResponse)
 def ensure_all_inventories(db: Session = Depends(get_db)):
     """Ensure every active product has an inventory record."""
-    products = db.query(Product).filter(Product.status == "active", Product.category != "bundle").all()
+    products = db.query(Product).filter(Product.status == "active", or_(Product.category != "bundle", Product.category.is_(None))).all()
     created = 0
     for p in products:
         inv = db.query(Inventory).filter(Inventory.product_id == p.id).first()

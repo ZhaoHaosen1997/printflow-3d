@@ -23,6 +23,7 @@ const toastApi = {
   dismiss,
   success: (msg, duration = 2500) => push('success', msg, duration),
   error: (msg, duration = 4000) => push('error', msg, duration),
+  warning: (msg, duration = 4000) => push('warning', msg, duration),
   info: (msg, duration = 3000) => push('info', msg, duration),
 }
 

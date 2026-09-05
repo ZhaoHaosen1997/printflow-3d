@@ -128,7 +128,7 @@ onMounted(fetchInventories)
       empty-text="暂无可管理的库存"
     >
       <template #cell-product_category="{ value }">
-        <span class="text-gray-400">{{ categoryMap[value] || value }}</span>
+        <span class="text-gray-400">{{ formatCategory(value) }}</span>
       </template>
       <template #cell-quantity="{ row }">
         <span

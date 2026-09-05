@@ -4,11 +4,12 @@ import { useToast } from '../composables/useToast'
 
 const { toasts, dismiss } = useToast()
 
-const icons = { success: CheckCircle2, error: AlertCircle, info: Info }
+const icons = { success: CheckCircle2, error: AlertCircle, warning: AlertCircle, info: Info }
 
 const toneStyles = {
   success: 'border-success/30 text-success',
   error: 'border-danger/30 text-danger',
+  warning: 'border-warning/30 text-warning',
   info: 'border-info/30 text-info',
 }
 </script>
