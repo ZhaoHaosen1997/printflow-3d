@@ -12,18 +12,6 @@ from backend.services.inventory_service import ensure_inventory
 router = APIRouter(prefix="/inventories", tags=["inventories"])
 
 
-def _deduct_inventory(db: Session, product_id: int, quantity: int):
-    """Deduct stock for a product. Auto-creates inventory record if missing."""
-    inv = ensure_inventory(db, product_id)
-    inv.quantity = max(0, inv.quantity - quantity)
-
-
-def _add_inventory(db: Session, product_id: int, quantity: int):
-    """Add stock for a product. Auto-creates inventory record if missing."""
-    inv = ensure_inventory(db, product_id)
-    inv.quantity += quantity
-
-
 @router.get("", response_model=list[InventoryListResponse])
 def list_inventories(db: Session = Depends(get_db)):
     """List all active products with their inventory status."""

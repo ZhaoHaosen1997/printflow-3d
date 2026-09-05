@@ -23,7 +23,11 @@ def calculate_recipe_cost(db: Session, recipe_id: int) -> dict:
     return {"total_cost": total, "unit_cost": unit_cost}
 
 
+# 事务约定：service 层只 flush 不 commit，事务由调用方（路由层）统一提交/回滚
+
+
 def sync_product_material_cost(db: Session, product_id: int):
+    """用默认配方的实时单位成本刷新商品成本快照。"""
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         return
@@ -40,7 +44,7 @@ def sync_product_material_cost(db: Session, product_id: int):
     else:
         product.material_cost = Decimal("0")
 
-    db.commit()
+    db.flush()
 
 
 def set_default_recipe(db: Session, recipe_id: int):
@@ -51,10 +55,10 @@ def set_default_recipe(db: Session, recipe_id: int):
     db.query(PrintRecipe).filter(
         PrintRecipe.product_id == recipe.product_id,
         PrintRecipe.is_default == True,  # noqa: E712
-    ).update({PrintRecipe.is_default: False})
+    ).update({PrintRecipe.is_default: False}, synchronize_session=False)
 
     recipe.is_default = True
-    db.commit()
+    db.flush()
     sync_product_material_cost(db, recipe.product_id)
 
 
@@ -72,7 +76,7 @@ def create_recipe(db: Session, product_id: int, data) -> PrintRecipe:
         db.query(PrintRecipe).filter(
             PrintRecipe.product_id == product_id,
             PrintRecipe.is_default == True,  # noqa: E712
-        ).update({PrintRecipe.is_default: False})
+        ).update({PrintRecipe.is_default: False}, synchronize_session=False)
 
     db.add(recipe)
     db.flush()
@@ -85,7 +89,6 @@ def create_recipe(db: Session, product_id: int, data) -> PrintRecipe:
         )
         db.add(rf)
 
-    db.commit()
     db.refresh(recipe)
 
     if recipe.is_default:
@@ -108,10 +111,9 @@ def update_recipe(db: Session, recipe_id: int, data) -> PrintRecipe:
             PrintRecipe.product_id == recipe.product_id,
             PrintRecipe.id != recipe_id,
             PrintRecipe.is_default == True,  # noqa: E712
-        ).update({PrintRecipe.is_default: False})
+        ).update({PrintRecipe.is_default: False}, synchronize_session=False)
 
-    db.commit()
-    db.refresh(recipe)
+    db.flush()
 
     if recipe.is_default:
         sync_product_material_cost(db, recipe.product_id)
@@ -128,7 +130,7 @@ def delete_recipe(db: Session, recipe_id: int):
     was_default = recipe.is_default
 
     db.delete(recipe)
-    db.commit()
+    db.flush()
 
     if was_default:
         next_recipe = (
@@ -138,20 +140,16 @@ def delete_recipe(db: Session, recipe_id: int):
         )
         if next_recipe:
             next_recipe.is_default = True
-            db.commit()
         sync_product_material_cost(db, product_id)
 
     return True
 
 
-def update_filament_price(db: Session, filament_id: int, new_price: Decimal):
-    filament = db.query(Filament).filter(Filament.id == filament_id).first()
-    if not filament:
-        return
+def sync_product_costs_for_filament(db: Session, filament_id: int):
+    """耗材价格变更后，级联刷新所有引用该耗材的默认配方所属商品的成本快照。
 
-    filament.price_per_kg = new_price
-    db.commit()
-
+    新价格须由调用方先写入 filament.price_per_kg（依赖 autoflush 使其对本函数可见）。
+    """
     default_recipes = (
         db.query(PrintRecipe)
         .join(PrintRecipeFilament)

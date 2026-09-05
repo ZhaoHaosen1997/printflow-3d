@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import case
 from backend.database import get_db
-from backend.models import Order, OrderItem, Buyer, Product, Inventory
+from backend.models import Order, OrderItem, Buyer, Product
 from backend.schemas import (
     OrderCreate, OrderUpdate, OrderResponse, OrderListResponse,
     PaginatedOrdersResponse,
@@ -17,7 +17,7 @@ from backend.schemas import (
 )
 from backend.services.parser_service import parse_order_text, match_products
 from backend.services.logger_service import log_business, log_parser, log_parser_warn, log_error
-from backend.services.inventory_service import ensure_inventory
+from backend.services.inventory_service import deduct_inventory, restore_inventory
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -137,16 +137,12 @@ def _deduct_order_inventory(db: Session, order_items: list, db_products: dict):
         if product.category == "bundle" and product.bundle_items:
             # Token合集包：按固定子商品列表展开扣减
             for child_id in product.bundle_items:
-                ensure_inventory(db, child_id)
-                inv = db.query(Inventory).filter(Inventory.product_id == child_id).first()
-                inv.quantity = max(0, inv.quantity - qty)
+                deduct_inventory(db, child_id, qty)
         elif product.category == "bundle":
             # 自选合集：子商品已在 order_items 中逐项列出，合集自身不扣库存
             continue
         else:
-            ensure_inventory(db, pid)
-            inv = db.query(Inventory).filter(Inventory.product_id == pid).first()
-            inv.quantity = max(0, inv.quantity - qty)
+            deduct_inventory(db, pid, qty)
 
 
 def _restore_order_inventory(db: Session, order: Order):
@@ -158,14 +154,12 @@ def _restore_order_inventory(db: Session, order: Order):
 
         if product.category == "bundle" and product.bundle_items:
             for child_id in product.bundle_items:
-                inv = ensure_inventory(db, child_id)
-                inv.quantity += item.quantity
+                restore_inventory(db, child_id, item.quantity)
         elif product.category == "bundle":
             # 自选合集：子商品已在 order_items 中逐项列出，合集自身不恢复库存
             continue
         else:
-            inv = ensure_inventory(db, item.product_id)
-            inv.quantity += item.quantity
+            restore_inventory(db, item.product_id, item.quantity)
 
 
 # ============ Order CRUD ============
@@ -277,6 +271,8 @@ def create_order(data: OrderCreate, db: Session = Depends(get_db)):
     # Create order items with material cost snapshot
     for item_data in data.items:
         product = db_products.get(item_data.product_id)
+        if not product:
+            raise HTTPException(400, f"商品不存在 (id={item_data.product_id})")
         oi = OrderItem(
             order_id=order.id,
             product_id=item_data.product_id,
@@ -497,6 +493,8 @@ def update_order(order_id: int, data: OrderUpdate, db: Session = Depends(get_db)
         product_ids = []
         for item_data in items_data:
             product = db.query(Product).filter(Product.id == item_data["product_id"]).first()
+            if not product:
+                raise HTTPException(400, f"商品不存在 (id={item_data['product_id']})")
             oi = OrderItem(
                 order_id=order.id,
                 product_id=item_data["product_id"],

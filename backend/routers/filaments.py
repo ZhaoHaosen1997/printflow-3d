@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from backend.database import get_db
 from backend.models import Filament
 from backend.schemas import FilamentCreate, FilamentUpdate, FilamentResponse, MessageResponse
-from backend.services.product_service import update_filament_price
+from backend.services.product_service import sync_product_costs_for_filament
 from backend.services.logger_service import log_business
 
 router = APIRouter(prefix="/filaments", tags=["filaments"])
@@ -47,12 +47,11 @@ def update_filament(filament_id: int, data: FilamentUpdate, db: Session = Depend
     for key, value in update_data.items():
         setattr(filament, key, value)
 
+    if "price_per_kg" in update_data and update_data["price_per_kg"] != old_price:
+        sync_product_costs_for_filament(db, filament_id)
+
     db.commit()
     db.refresh(filament)
-
-    if "price_per_kg" in update_data and update_data["price_per_kg"] != old_price:
-        update_filament_price(db, filament_id, update_data["price_per_kg"])
-
     return filament
 
 

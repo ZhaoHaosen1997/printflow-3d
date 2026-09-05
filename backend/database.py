@@ -1,16 +1,33 @@
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
-DB_PATH = os.path.join(DATA_DIR, "app.db")
+# PRINTFLOW_DB_PATH 仅供测试脚本指向临时库，生产不设置
+DB_PATH = os.getenv("PRINTFLOW_DB_PATH") or os.path.join(DATA_DIR, "app.db")
 
-os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 DATABASE_URL = f"sqlite:///{DB_PATH}"
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={
+        "check_same_thread": False,
+        "timeout": 15,  # busy_timeout：并发写时等待锁而不是立即抛 database is locked
+    },
+)
+
+
+@event.listens_for(engine, "connect")
+def _set_sqlite_pragma(dbapi_connection, connection_record):
+    """SQLite 默认不启用外键约束，需每个连接显式开启。"""
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
+
 SessionLocal = sessionmaker(bind=engine)
 
 
@@ -23,6 +40,8 @@ def get_db():
     try:
         yield db
     finally:
+        # 显式回滚未提交事务（已 commit 或只读请求时为 no-op），不依赖 close 的隐式行为
+        db.rollback()
         db.close()
 
 
@@ -232,6 +251,30 @@ def migrate_product_games(db):
     print(f"Associated {len(products)} products with default game")
 
 
+def cleanup_orphan_rows(db):
+    """清理 FK 未启用时期 bulk delete 遗留的孤儿行（存量数据一次性修复）。"""
+    from backend.models import PrintRecipe, PrintRecipeFilament, PrintTask, Inventory, Product
+
+    orphan_rf = (
+        db.query(PrintRecipeFilament)
+        .filter(~PrintRecipeFilament.recipe_id.in_(db.query(PrintRecipe.id)))
+        .delete(synchronize_session=False)
+    )
+    orphan_task = (
+        db.query(PrintTask)
+        .filter(~PrintTask.recipe_id.in_(db.query(PrintRecipe.id)))
+        .delete(synchronize_session=False)
+    )
+    orphan_inv = (
+        db.query(Inventory)
+        .filter(~Inventory.product_id.in_(db.query(Product.id)))
+        .delete(synchronize_session=False)
+    )
+    if orphan_rf or orphan_task or orphan_inv:
+        db.commit()
+        log_db("迁移", f"清理孤儿行: 配方耗材={orphan_rf}, 打印任务={orphan_task}, 库存={orphan_inv}")
+
+
 def init_db():
     from backend import models  # noqa: ensure all models loaded
     from backend.services.logger_service import log_db
@@ -256,5 +299,6 @@ def init_db():
         seed_categories(db)
         migrate_category_to_id(db)
         migrate_product_games(db)
+        cleanup_orphan_rows(db)
     finally:
         db.close()

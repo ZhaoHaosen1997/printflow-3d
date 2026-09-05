@@ -3,13 +3,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from backend.database import get_db
-from backend.models import PrintTask, PrintRecipe, Product, Inventory
+from backend.models import PrintTask, PrintRecipe
 from backend.schemas import (
     PrintTaskCreate, PrintTaskUpdate, PrintTaskFailRequest,
     PrintTaskResponse, PrintTaskListResponse, PaginatedPrintTasksResponse,
     MessageResponse,
 )
 from backend.services.logger_service import log_business, log_error
+from backend.services.inventory_service import restore_inventory
 
 router = APIRouter(prefix="/print-tasks", tags=["print-tasks"])
 
@@ -136,17 +137,8 @@ def complete_print_task(task_id: int, db: Session = Depends(get_db)):
 
     recipe.print_count += 1
 
-    inventory = db.query(Inventory).filter(
-        Inventory.product_id == recipe.product_id
-    ).first()
-    if inventory:
-        inventory.quantity += recipe.output_qty
-    else:
-        inventory = Inventory(
-            product_id=recipe.product_id,
-            quantity=recipe.output_qty,
-        )
-        db.add(inventory)
+    # 打印完成联动：原子回补成品库存（记录不存在时自动补建）
+    restore_inventory(db, recipe.product_id, recipe.output_qty)
 
     db.commit()
     db.refresh(task)

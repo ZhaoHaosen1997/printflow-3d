@@ -220,6 +220,8 @@ def add_recipe(product_id: int, data: PrintRecipeCreate, db: Session = Depends(g
         raise HTTPException(404, "商品不存在")
 
     recipe = create_recipe(db, product_id, data)
+    db.commit()
+    db.refresh(recipe)
     costs = calculate_recipe_cost(db, recipe.id)
     recipe.total_cost = costs["total_cost"]
     recipe.unit_cost = costs["unit_cost"]
@@ -232,6 +234,8 @@ def update_recipe_endpoint(recipe_id: int, data: PrintRecipeUpdate, db: Session 
     if not recipe:
         raise HTTPException(404, "配方不存在")
 
+    db.commit()
+    db.refresh(recipe)
     costs = calculate_recipe_cost(db, recipe_id)
     recipe.total_cost = costs["total_cost"]
     recipe.unit_cost = costs["unit_cost"]
@@ -243,6 +247,7 @@ def delete_recipe_endpoint(recipe_id: int, db: Session = Depends(get_db)):
     result = delete_recipe(db, recipe_id)
     if not result:
         raise HTTPException(404, "配方不存在")
+    db.commit()
     return MessageResponse(message="配方已删除")
 
 
@@ -252,6 +257,7 @@ def set_default(recipe_id: int, db: Session = Depends(get_db)):
     if not recipe:
         raise HTTPException(404, "配方不存在")
     set_default_recipe(db, recipe_id)
+    db.commit()
     return MessageResponse(message=f"已设为默认配方: {recipe.name}")
 
 
@@ -265,12 +271,13 @@ def add_recipe_filament(recipe_id: int, data: PrintRecipeFilamentCreate, db: Ses
 
     rf = PrintRecipeFilament(recipe_id=recipe_id, filament_id=data.filament_id, grams=data.grams)
     db.add(rf)
-    db.commit()
-    db.refresh(rf)
+    db.flush()
 
     if recipe.is_default:
         sync_product_material_cost(db, recipe.product_id)
 
+    db.commit()
+    db.refresh(rf)
     return rf
 
 
@@ -282,13 +289,13 @@ def update_recipe_filament(rf_id: int, data: PrintRecipeFilamentCreate, db: Sess
 
     rf.filament_id = data.filament_id
     rf.grams = data.grams
-    db.commit()
-    db.refresh(rf)
 
     recipe = db.query(PrintRecipe).filter(PrintRecipe.id == rf.recipe_id).first()
     if recipe and recipe.is_default:
         sync_product_material_cost(db, recipe.product_id)
 
+    db.commit()
+    db.refresh(rf)
     return rf
 
 
@@ -298,13 +305,12 @@ def delete_recipe_filament(rf_id: int, db: Session = Depends(get_db)):
     if not rf:
         raise HTTPException(404, "配方耗材不存在")
 
-    recipe_id = rf.recipe_id
-    recipe = db.query(PrintRecipe).filter(PrintRecipe.id == recipe_id).first()
+    recipe = db.query(PrintRecipe).filter(PrintRecipe.id == rf.recipe_id).first()
 
     db.delete(rf)
-    db.commit()
 
     if recipe and recipe.is_default:
         sync_product_material_cost(db, recipe.product_id)
 
+    db.commit()
     return MessageResponse(message="配方耗材已删除")

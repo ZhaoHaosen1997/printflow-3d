@@ -61,13 +61,34 @@ function openConfirm() {
   confirmVisible.value = true
 }
 
+const ADMIN_TOKEN_KEY = 'printflow_admin_token'
+
+function adminHeaders() {
+  const token = localStorage.getItem(ADMIN_TOKEN_KEY)
+  return token ? { 'X-Admin-Token': token } : undefined
+}
+
+// 服务端启用 ADMIN_TOKEN 时，403 提示后让用户输入一次并记住
+async function delAdmin(body) {
+  try {
+    return await del('/api/admin/archived', body, adminHeaders())
+  } catch (e) {
+    if (!String(e.message).includes('X-Admin-Token')) throw e
+    const input = prompt('本服务已启用管理令牌 (ADMIN_TOKEN)，请输入：')
+    if (!input) throw e
+    localStorage.setItem(ADMIN_TOKEN_KEY, input)
+    return del('/api/admin/archived', body, { 'X-Admin-Token': input })
+  }
+}
+
 async function doDelete() {
   deleting.value = true
   try {
-    for (const type of ['products', 'filaments', 'orders']) {
+    // 删除顺序：先订单 → 再耗材 → 最后商品（商品物理删除要求不再被订单明细/配方引用）
+    for (const type of ['orders', 'filaments', 'products']) {
       const ids = selected.value[type]
       if (ids.length === 0) continue
-      await del(`/api/admin/archived`, { type, ids })
+      await delAdmin({ type, ids, confirm: 'DELETE' })
       selected.value[type] = []
     }
     confirmVisible.value = false

@@ -126,7 +126,7 @@ class PrintRecipeFilament(Base):
     __tablename__ = "print_recipe_filaments"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    recipe_id = Column(Integer, ForeignKey("print_recipes.id"), nullable=False)
+    recipe_id = Column(Integer, ForeignKey("print_recipes.id", ondelete="CASCADE"), nullable=False)
     filament_id = Column(Integer, ForeignKey("filaments.id"), nullable=False)
     grams = Column(Numeric(10, 2), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)

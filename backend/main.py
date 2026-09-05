@@ -32,7 +32,7 @@ ALLOWED_ORIGINS = os.getenv(
     "http://localhost:5173,http://localhost:18848"
 ).split(",")
 
-app = FastAPI(title="PrintFlow-3D", version="1.17.0")
+app = FastAPI(title="PrintFlow-3D", version="1.18.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -66,7 +66,7 @@ app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 @app.on_event("startup")
 def on_startup():
     init_db()
-    log_business("服务启动", "PrintFlow-3D", version="1.17.0")
+    log_business("服务启动", "PrintFlow-3D", version="1.18.0")
 
 
 @app.get("/api/health")
@@ -77,9 +77,12 @@ def health():
 # 生产模式：若前端已构建，捕获所有未匹配路径 → 返回 SPA
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend", "dist")
 if os.path.exists(FRONTEND_DIR) and os.listdir(FRONTEND_DIR):
+    _FRONTEND_DIR_REAL = os.path.realpath(FRONTEND_DIR)
+
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
-        file_path = os.path.join(FRONTEND_DIR, full_path)
-        if os.path.isfile(file_path):
-            return FileResponse(file_path)
-        return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+        # 防路径遍历：URL 中的 ../ 会被解码，必须用 realpath 归一后校验仍位于 dist 内
+        candidate = os.path.realpath(os.path.join(_FRONTEND_DIR_REAL, full_path))
+        if candidate.startswith(_FRONTEND_DIR_REAL + os.sep) and os.path.isfile(candidate):
+            return FileResponse(candidate)
+        return FileResponse(os.path.join(_FRONTEND_DIR_REAL, "index.html"))

@@ -48,10 +48,13 @@ export function useApi() {
     })
   }
 
-  function del(endpoint, body) {
+  function del(endpoint, body, headers) {
     const options = { method: 'DELETE' }
     if (body) {
       options.body = JSON.stringify(body)
+    }
+    if (headers) {
+      options.headers = headers
     }
     return request(endpoint, options)
   }
