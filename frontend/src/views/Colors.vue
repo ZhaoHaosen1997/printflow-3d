@@ -60,8 +60,8 @@ async function confirmDelete(color) {
   try {
     await del(`/api/colors/${color.id}`)
     fetchColors()
-  } catch (e) {
-    alert('删除颜色失败: ' + (e.message || e))
+  } catch {
+    // 失败已由 useApi 全局 toast 提示
   }
 }
 

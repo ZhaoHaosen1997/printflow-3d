@@ -1,4 +1,5 @@
 from decimal import Decimal
+from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 from backend.models import PrintRecipe, PrintRecipeFilament, Product, Filament
 
@@ -119,6 +120,38 @@ def update_recipe(db: Session, recipe_id: int, data) -> PrintRecipe:
         sync_product_material_cost(db, recipe.product_id)
 
     return recipe
+
+
+def replace_recipe_filaments(db: Session, recipe_id: int, items) -> list[PrintRecipeFilament] | None:
+    """整单替换配方耗材：先清空再写入，单事务原子生效。
+
+    替代前端"逐条删 + 逐条建"的 2N 次请求模式，且中途失败不再静默丢数据。
+    """
+    recipe = db.query(PrintRecipe).filter(PrintRecipe.id == recipe_id).first()
+    if not recipe:
+        return None
+
+    fids = {i.filament_id for i in items}
+    if fids:
+        valid_count = db.query(Filament.id).filter(Filament.id.in_(fids)).count()
+        if valid_count != len(fids):
+            raise HTTPException(400, "存在无效的耗材引用，请刷新耗材列表后重试")
+
+    db.query(PrintRecipeFilament).filter(
+        PrintRecipeFilament.recipe_id == recipe_id
+    ).delete(synchronize_session=False)
+
+    rfs = [
+        PrintRecipeFilament(recipe_id=recipe_id, filament_id=i.filament_id, grams=i.grams)
+        for i in items
+    ]
+    db.add_all(rfs)
+    db.flush()
+
+    if recipe.is_default:
+        sync_product_material_cost(db, recipe.product_id)
+
+    return rfs
 
 
 def delete_recipe(db: Session, recipe_id: int):

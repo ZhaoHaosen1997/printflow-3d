@@ -1,11 +1,15 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { Plus, X, Search, Download } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
+import { useToast } from '../composables/useToast'
 import DataTable from '../components/DataTable.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 
 const { loading, get, post, put, del } = useApi()
+const toast = useToast()
+const route = useRoute()
 
 const orders = ref([])
 const totalOrders = ref(0)
@@ -73,7 +77,9 @@ const orderForm = ref({
   items: [],
 })
 
+let fetchSeq = 0
 async function fetchAll() {
+  const seq = ++fetchSeq
   const offset = (currentPage.value - 1) * pageSize.value
   let params = `?limit=${pageSize.value}&offset=${offset}`
   const f = filters.value
@@ -87,6 +93,8 @@ async function fetchAll() {
     get('/api/products'),
     get('/api/settings'),
   ])
+  // 快速翻页/切筛选时丢弃过期响应，防止慢请求晚到覆盖新数据
+  if (seq !== fetchSeq) return
   orders.value = ordData.items
   totalOrders.value = ordData.total
   products.value = prod.filter(p => p.status === 'active')
@@ -131,8 +139,8 @@ async function exportCSV() {
     a.click()
     document.body.removeChild(a)
     setTimeout(() => URL.revokeObjectURL(url), 1000)
-  } catch (e) {
-    alert('CSV导出失败，请重试')
+  } catch {
+    toast.error('CSV导出失败，请重试')
   }
 }
 
@@ -330,7 +338,14 @@ async function handleSubmit() {
   }
 }
 
-onMounted(fetchAll)
+onMounted(() => {
+  // 支持 Dashboard 等外部入口携带 ?status=pending_ship 直达筛选
+  for (const key of Object.keys(filters.value)) {
+    const v = route.query[key]
+    if (v != null && v !== '') filters.value[key] = v
+  }
+  fetchAll()
+})
 </script>
 
 <template>

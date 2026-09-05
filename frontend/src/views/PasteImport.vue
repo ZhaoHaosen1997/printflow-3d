@@ -88,8 +88,8 @@ async function saveOrder(index) {
       items,
     })
     savedIds.value.add(index)
-  } catch (e) {
-    alert(`保存失败: ${e.message}`)
+  } catch {
+    // 失败已由 useApi 全局 toast 提示
   } finally {
     saving.value = false
   }

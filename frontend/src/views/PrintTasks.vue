@@ -108,8 +108,8 @@ async function startTask(id) {
   try {
     await post(`/api/print-tasks/${id}/start`)
     await fetchTasks()
-  } catch (e) {
-    alert('启动任务失败: ' + (e.message || e))
+  } catch {
+    // 失败已由 useApi 全局 toast 提示
   }
 }
 
@@ -117,8 +117,8 @@ async function completeTask(id) {
   try {
     await post(`/api/print-tasks/${id}/complete`)
     await fetchTasks()
-  } catch (e) {
-    alert('完成任务失败: ' + (e.message || e))
+  } catch {
+    // 失败已由 useApi 全局 toast 提示
   }
 }
 
@@ -126,8 +126,8 @@ async function failTask(id) {
   try {
     await post(`/api/print-tasks/${id}/fail`, { fail_reason: null })
     await fetchTasks()
-  } catch (e) {
-    alert('标记失败失败: ' + (e.message || e))
+  } catch {
+    // 失败已由 useApi 全局 toast 提示
   }
 }
 
@@ -135,8 +135,8 @@ async function cancelTask(id) {
   try {
     await post(`/api/print-tasks/${id}/cancel`)
     await fetchTasks()
-  } catch (e) {
-    alert('取消任务失败: ' + (e.message || e))
+  } catch {
+    // 失败已由 useApi 全局 toast 提示
   }
 }
 

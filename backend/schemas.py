@@ -183,6 +183,11 @@ class PrintRecipeUpdate(BaseModel):
     status: Optional[str] = None
 
 
+class RecipeFilamentsBulkUpdate(BaseModel):
+    """整单替换配方耗材（先清空再写入，单事务生效）。"""
+    items: List[PrintRecipeFilamentCreate] = []
+
+
 class PrintRecipeResponse(PrintRecipeBase):
     id: int
     product_id: int

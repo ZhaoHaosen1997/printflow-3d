@@ -10,11 +10,12 @@ from backend.schemas import (
     ProductCreate, ProductUpdate, ProductResponse,
     PrintRecipeCreate, PrintRecipeUpdate, PrintRecipeResponse,
     PrintRecipeFilamentCreate, PrintRecipeFilamentResponse,
+    RecipeFilamentsBulkUpdate,
     MessageResponse, SortOrderRequest,
 )
 from backend.services.product_service import (
     calculate_recipe_cost, create_recipe, update_recipe, delete_recipe,
-    set_default_recipe, sync_product_material_cost,
+    set_default_recipe, sync_product_material_cost, replace_recipe_filaments,
 )
 from backend.services.logger_service import log_business
 
@@ -240,6 +241,18 @@ def update_recipe_endpoint(recipe_id: int, data: PrintRecipeUpdate, db: Session 
     recipe.total_cost = costs["total_cost"]
     recipe.unit_cost = costs["unit_cost"]
     return recipe
+
+
+@router.put("/recipes/{recipe_id}/filaments", response_model=list[PrintRecipeFilamentResponse])
+def replace_recipe_filaments_endpoint(recipe_id: int, data: RecipeFilamentsBulkUpdate, db: Session = Depends(get_db)):
+    """整单替换配方耗材（单事务），供前端配方编辑一次请求完成保存。"""
+    rfs = replace_recipe_filaments(db, recipe_id, data.items)
+    if rfs is None:
+        raise HTTPException(404, "配方不存在")
+    db.commit()
+    for rf in rfs:
+        db.refresh(rf)
+    return rfs
 
 
 @router.delete("/recipes/{recipe_id}", response_model=MessageResponse)

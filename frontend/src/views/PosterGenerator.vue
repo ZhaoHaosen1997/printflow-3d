@@ -66,7 +66,8 @@ async function fetchBundles() {
     if (bundles.value.length > 0 && !bundleId.value) {
       bundleId.value = bundles.value[0].id
     }
-  } catch (e) {
+  } catch {
+    // 失败已由 useApi 全局 toast 提示，这里保留空列表兜底
     bundles.value = []
   }
 }
@@ -125,7 +126,9 @@ async function fetchGamesAndCategories() {
     if (categoryOptions.value.length > 0 && !categoryOptions.value.find(o => o.value === category.value)) {
       category.value = categoryOptions.value[0].value
     }
-  } catch (e) {}
+  } catch {
+    // 失败已由 useApi 全局 toast 提示
+  }
 }
 
 onMounted(() => {

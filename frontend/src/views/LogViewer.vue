@@ -58,14 +58,14 @@ function buildParams() {
   return params
 }
 
-async function fetchLogs(reset = false) {
+async function fetchLogs(reset = false, { silent = false } = {}) {
   if (reset) {
     page.value = 1
     entries.value = []
   }
   loading.value = true
   try {
-    const data = await get('/api/logs' + buildParams())
+    const data = await get('/api/logs' + buildParams(), { silent: silent })
     if (reset) {
       entries.value = data
     } else {
@@ -79,7 +79,7 @@ async function fetchLogs(reset = false) {
 
 async function fetchInfo() {
   try {
-    logInfo.value = await get('/api/logs/info')
+    logInfo.value = await get('/api/logs/info', { silent: true })
   } catch {
     // log info is non-critical, ignore
   }
@@ -103,7 +103,7 @@ let timer = null
 function toggleAutoRefresh() {
   autoRefresh.value = !autoRefresh.value
   if (autoRefresh.value) {
-    timer = setInterval(() => fetchLogs(true), 5000)
+    timer = setInterval(() => fetchLogs(true, { silent: true }), 5000)
   } else {
     clearInterval(timer)
   }

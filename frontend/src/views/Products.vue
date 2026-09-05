@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, nextTick } from 'vue'
 import { Plus, X, Package, Star, Upload, Crop, GripVertical, ArrowUpDown, Check, Copy } from '@lucide/vue'
 import { useApi } from '../composables/useApi'
+import { useToast } from '../composables/useToast'
 import DataTable from '../components/DataTable.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import Cropper from 'cropperjs'
@@ -9,6 +10,7 @@ import 'cropperjs/dist/cropper.css'
 import draggable from 'vuedraggable'
 
 const { loading, get, post, put, del } = useApi()
+const toast = useToast()
 
 const products = ref([])
 const filaments = ref([])
@@ -229,8 +231,8 @@ async function saveSortOrder() {
     await put('/api/products/sort-order', { items })
     sortMode.value = false
     await fetchAll()
-  } catch (e) {
-    alert('排序保存失败: ' + (e.message || e))
+  } catch {
+    // 失败已由 useApi 全局 toast 提示
   } finally {
     sortSaving.value = false
   }
@@ -305,8 +307,8 @@ async function loadDescription() {
   try {
     const res = await get(`/api/descriptions/bundle/${descProduct.value.id}`)
     descText.value = res.text || ''
-  } catch (e) {
-    alert('生成介绍失败: ' + (e.message || e))
+  } catch {
+    // 失败已由 useApi 全局 toast 提示
   } finally {
     descLoading.value = false
   }
@@ -328,8 +330,8 @@ async function copyDescription() {
     }
     descCopied.value = true
     setTimeout(() => { descCopied.value = false }, 1500)
-  } catch (e) {
-    alert('复制失败，请手动复制: ' + (e.message || e))
+  } catch {
+    toast.error('复制失败，请手动复制')
   }
 }
 
@@ -357,8 +359,8 @@ async function handleProductSubmit() {
       products.value.push(created)
     }
     productModalVisible.value = false
-  } catch (e) {
-    alert('保存失败: ' + (e.message || e))
+  } catch {
+    // 失败已由 useApi 全局 toast 提示
   } finally {
     productSaving.value = false
   }
@@ -400,12 +402,15 @@ async function confirmCrop() {
       const formData = new FormData()
       formData.append('file', blob, cropFilename.value)
       const res = await fetch('/api/products/upload-image', { method: 'POST', body: formData })
-      if (!res.ok) throw new Error('Upload failed')
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.detail || '上传失败')
+      }
       const data = await res.json()
       productForm.value.image = data.filename
       cropModalVisible.value = false
     } catch (e) {
-      alert('上传失败: ' + e.message)
+      toast.error(e.message || '上传失败')
     } finally {
       imageUploading.value = false
     }
@@ -501,13 +506,9 @@ async function handleRecipeSubmit() {
         is_default: form.is_default,
       }
       await put(`/api/recipes/${editingRecipe.value.id}`, payload)
-      // update filaments: delete all existing, re-add
-      for (const rf of (editingRecipe.value.recipe_filaments || [])) {
-        try { await del(`/api/recipe-filaments/${rf.id}`) } catch { /* best-effort */ }
-      }
-      for (const f of filaments) {
-        try { await post(`/api/recipes/${editingRecipe.value.id}/filaments`, f) } catch { /* best-effort */ }
-      }
+      // 整单批量替换耗材（单事务，v1.19.0）——替代逐条删+建的 2N 次请求，
+      // 中途失败不再静默丢失耗材关联
+      await put(`/api/recipes/${editingRecipe.value.id}/filaments`, { items: filaments })
     } else {
       await post(`/api/products/${recipeProduct.value.id}/recipes`, {
         name: form.name,

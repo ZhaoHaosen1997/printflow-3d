@@ -80,8 +80,8 @@ async function saveGame(game) {
     await put(`/api/games/${game.id}`, gameForm.value)
     gameEditing.value = null
     await fetchGames()
-  } catch (e) {
-    alert('保存失败: ' + (e.message || e))
+  } catch {
+    // 失败已由 useApi 全局 toast 提示
   } finally {
     gameSaving.value = false
   }
@@ -94,8 +94,8 @@ async function createGame() {
     await post('/api/games', gameForm.value)
     gameForm.value = { name: '', slug: '', icon: '', sort_order: 0 }
     await fetchGames()
-  } catch (e) {
-    alert('创建失败: ' + (e.message || e))
+  } catch {
+    // 失败已由 useApi 全局 toast 提示
   } finally {
     gameSaving.value = false
   }
@@ -134,8 +134,8 @@ async function saveCat(cat) {
     await put(`/api/categories/${cat.id}`, catForm.value)
     catEditing.value = null
     await fetchCategories()
-  } catch (e) {
-    alert('保存失败: ' + (e.message || e))
+  } catch {
+    // 失败已由 useApi 全局 toast 提示
   } finally {
     catSaving.value = false
   }
@@ -148,8 +148,8 @@ async function createCat() {
     await post('/api/categories', catForm.value)
     catForm.value = { name: '', slug: '', sort_order: 0 }
     await fetchCategories()
-  } catch (e) {
-    alert('创建失败: ' + (e.message || e))
+  } catch {
+    // 失败已由 useApi 全局 toast 提示
   } finally {
     catSaving.value = false
   }

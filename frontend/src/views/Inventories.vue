@@ -81,8 +81,8 @@ async function ensureAll() {
   try {
     await post('/api/inventories/ensure-all')
     await fetchInventories()
-  } catch (e) {
-    alert('同步库存失败: ' + (e.message || e))
+  } catch {
+    // 失败已由 useApi 全局 toast 提示
   }
 }
 

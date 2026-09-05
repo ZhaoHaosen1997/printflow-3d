@@ -82,8 +82,8 @@ async function archiveFilament(row) {
   try {
     await del(`/api/filaments/${row.id}`)
     row.status = 'archived'
-  } catch (e) {
-    alert('归档耗材失败: ' + (e.message || e))
+  } catch {
+    // 失败已由 useApi 全局 toast 提示
   }
 }
 
