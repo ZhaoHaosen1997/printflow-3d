@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from backend.crud_utils import apply_update, get_or_404
 from backend.database import get_db
 from backend.models import Inventory, Product
 from backend.schemas import (
@@ -42,22 +43,16 @@ def list_inventories(db: Session = Depends(get_db)):
 
 @router.get("/{inventory_id}", response_model=InventoryResponse)
 def get_inventory(inventory_id: int, db: Session = Depends(get_db)):
-    inv = db.query(Inventory).filter(Inventory.id == inventory_id).first()
-    if not inv:
-        raise HTTPException(404, "库存记录不存在")
+    inv = get_or_404(db, Inventory, inventory_id, "库存记录不存在")
     return inv
 
 
 @router.put("/{inventory_id}", response_model=InventoryResponse)
 def update_inventory(inventory_id: int, data: InventoryUpdate, db: Session = Depends(get_db)):
-    inv = db.query(Inventory).filter(Inventory.id == inventory_id).first()
-    if not inv:
-        raise HTTPException(404, "库存记录不存在")
+    inv = get_or_404(db, Inventory, inventory_id, "库存记录不存在")
 
     old_qty = inv.quantity
-    update_data = data.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(inv, key, value)
+    apply_update(inv, data.model_dump(exclude_unset=True))
 
     db.commit()
     db.refresh(inv)

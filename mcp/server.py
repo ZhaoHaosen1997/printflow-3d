@@ -1,20 +1,22 @@
+import os
+import sys
+from pathlib import Path
+
+# 让 MCP server 能直接引用仓库内的共享常量（backend/constants.py 无第三方依赖）
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 import httpx
 from mcp.server.fastmcp import FastMCP
 
+from backend.constants import ORDER_STATUS
+
 mcp = FastMCP("printflow")
 
-API_BASE = "http://localhost:8848/api"
+API_BASE = os.getenv("PRINTFLOW_API_BASE", "http://localhost:8848/api")
 TIMEOUT = 30.0
 
-# Order status keys → Chinese labels (kept in sync with backend.models.ORDER_STATUS)
-ORDER_STATUS = {
-    "pending_ship": "待发货",
-    "shipped": "已发货",
-    "completed": "交易成功",
-    "cancelled": "已取消",
-    "returned": "退货",
-    "archived": "已归档",
-}
 # Reverse lookup: Chinese label / alias → canonical key
 STATUS_ALIASES = {
     "待发货": "pending_ship",
@@ -41,54 +43,35 @@ for k, label in ORDER_STATUS.items():
 ACTIVE_STATUSES = {"pending_ship", "shipped"}
 
 
-def _get(path: str, params: dict = None) -> dict | list | str:
+def _request(method: str, path: str, *, params: dict = None, json: dict = None) -> dict | list | str:
+    """统一请求入口。失败时返回 "Error: ..." 字符串（调用方用 isinstance(result, str) 判断）。"""
     try:
         with httpx.Client(timeout=TIMEOUT) as client:
-            r = client.get(f"{API_BASE}{path}", params=params or {})
+            r = client.request(method, f"{API_BASE}{path}", params=params or {}, json=json or {})
             r.raise_for_status()
             return r.json()
     except httpx.ConnectError:
         return f"Error: Cannot connect to PrintFlow API ({API_BASE})"
     except httpx.HTTPStatusError as e:
-        return f"Error: API returned {e.response.status_code}"
+        try:
+            detail = e.response.json().get("detail", e.response.text)
+        except Exception:
+            detail = e.response.text
+        return f"Error: {detail}"
     except Exception as e:
         return f"Error: {e}"
+
+
+def _get(path: str, params: dict = None) -> dict | list | str:
+    return _request("GET", path, params=params)
 
 
 def _post(path: str, json: dict = None) -> dict | list | str:
-    try:
-        with httpx.Client(timeout=TIMEOUT) as client:
-            r = client.post(f"{API_BASE}{path}", json=json or {})
-            r.raise_for_status()
-            return r.json()
-    except httpx.ConnectError:
-        return f"Error: Cannot connect to PrintFlow API ({API_BASE})"
-    except httpx.HTTPStatusError as e:
-        try:
-            detail = e.response.json().get("detail", e.response.text)
-        except Exception:
-            detail = e.response.text
-        return f"Error: {detail}"
-    except Exception as e:
-        return f"Error: {e}"
+    return _request("POST", path, json=json)
 
 
 def _put(path: str, json: dict = None) -> dict | list | str:
-    try:
-        with httpx.Client(timeout=TIMEOUT) as client:
-            r = client.put(f"{API_BASE}{path}", json=json or {})
-            r.raise_for_status()
-            return r.json()
-    except httpx.ConnectError:
-        return f"Error: Cannot connect to PrintFlow API ({API_BASE})"
-    except httpx.HTTPStatusError as e:
-        try:
-            detail = e.response.json().get("detail", e.response.text)
-        except Exception:
-            detail = e.response.text
-        return f"Error: {detail}"
-    except Exception as e:
-        return f"Error: {e}"
+    return _request("PUT", path, json=json)
 
 
 def _normalize_status(status: str) -> str | None:
@@ -518,17 +501,20 @@ def update_order_status(order_id: int, status: str, reason: str = None) -> dict:
     if status_key == "archived":
         return {"error": "不允许将订单归档，请选择其他状态。未完成订单可改为: 已发货(发货)、交易成功(完成)、已取消、退货。"}
 
+    # 先读旧备注，再单次 PUT 同时提交 status + notes：
+    # 旧实现是两次 PUT，第二次（备注）失败会留下"状态已变但备注丢失"的中间态
+    current = _get(f"/orders/{int(order_id)}")
+    if isinstance(current, str):
+        return {"error": current}
+
     payload = {"status": status_key}
+    if reason:
+        old_notes = current.get("notes") or ""
+        payload["notes"] = f"{old_notes}\n[状态变更] {reason}".strip()
+
     result = _put(f"/orders/{int(order_id)}", payload)
     if isinstance(result, str):
         return {"error": result}
-
-    if reason:
-        old_notes = result.get("notes") or ""
-        new_notes = f"{old_notes}\n[状态变更] {reason}".strip()
-        updated = _put(f"/orders/{int(order_id)}", {"notes": new_notes})
-        if not isinstance(updated, str):
-            result = updated
 
     return {
         "id": result["id"],

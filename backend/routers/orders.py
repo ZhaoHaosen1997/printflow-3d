@@ -1,11 +1,13 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from decimal import Decimal
 from io import StringIO
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import case
+from backend.constants import ORDER_STATUS, TERMINAL_STATUSES
 from backend.database import get_db
+from backend.utils.time import now_local
 from backend.models import Order, OrderItem, Buyer, Product
 from backend.schemas import (
     OrderCreate, OrderUpdate, OrderResponse, OrderListResponse,
@@ -21,11 +23,9 @@ from backend.services.inventory_service import deduct_inventory, restore_invento
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
-TERMINAL_STATUSES = {"completed", "cancelled", "returned", "archived"}
-
 
 def _generate_order_no(db: Session) -> str:
-    today = datetime.utcnow().strftime("%Y%m%d")
+    today = now_local().strftime("%Y%m%d")
     prefix = f"ORD-{today}-"
     last = (
         db.query(Order)
@@ -244,7 +244,7 @@ def create_order(data: OrderCreate, db: Session = Depends(get_db)):
         xianyu_order_id=data.xianyu_order_id,
         buyer_id=buyer_id,
         status=data.status,
-        order_time=data.order_time or datetime.utcnow(),
+        order_time=data.order_time or now_local(),
         total_amount=data.total_amount,
         discount=data.discount,
         actual_amount=data.actual_amount,
@@ -301,6 +301,37 @@ def create_order(data: OrderCreate, db: Session = Depends(get_db)):
 
 # ============ Orders Export ============
 
+SOURCE_LABEL = {
+    "paste_import": "粘贴导入", "manual": "手动", "wechat": "微信", "migrated": "旧版导入", "image_import": "识图导入",
+}
+
+
+def _order_csv_row(o: Order, buyer_name: str, o_time: str, c_time: str,
+                   source_label: str, item: tuple) -> str:
+    """CSV 单行（19 列）。item = (商品名称, 数量, 单价, 材料成本)；无明细时为 ("", "", 0, 0)。"""
+    name, qty, price, cost = item
+    return (
+        f'"{o.order_no}",'
+        f'"{o.xianyu_order_id or ""}",'
+        f'"{buyer_name}",'
+        f'"{ORDER_STATUS.get(o.status, o.status)}",'
+        f'"{o_time}",'
+        f'"{c_time}",'
+        f'"{name}",'
+        f'{qty},'
+        f'{price},'
+        f'{cost},'
+        f'{o.total_amount},'
+        f'{o.actual_amount},'
+        f'{o.shipping_fee},'
+        f'{o.packaging_fee},'
+        f'{o.service_fee},'
+        f'{o.charity_fee},'
+        f'{o.discount},'
+        f'"{source_label}",'
+        f'"{o.notes or ""}"\n'
+    )
+
 
 @router.get("/export")
 def orders_export(
@@ -334,18 +365,12 @@ def orders_export(
         (Order.status.in_(["pending_ship", "shipped"]), 0),
         else_=1,
     )
-    orders = q.order_by(status_priority, Order.order_no.desc()).all()
+    orders = q.options(selectinload(Order.items), selectinload(Order.buyer)).order_by(
+        status_priority, Order.order_no.desc()
+    ).all()
 
     output = StringIO()
     output.write("订单编号,闲鱼订单号,买家,状态,下单时间,完成时间,商品名称,数量,单价,材料成本,原价总额,实付金额,运费,包装费,服务费,公益支出,砍价,来源,备注\n")
-
-    STATUS_LABEL = {
-        "pending_ship": "待发货", "shipped": "已发货", "completed": "交易成功",
-        "cancelled": "已取消", "returned": "退货", "archived": "已归档",
-    }
-    SOURCE_LABEL = {
-        "paste_import": "粘贴导入", "manual": "手动", "wechat": "微信", "migrated": "旧版导入", "image_import": "识图导入",
-    }
 
     for o in orders:
         buyer_name = o.buyer.nickname if o.buyer else ""
@@ -355,75 +380,22 @@ def orders_export(
 
         items = o.items
         if not items:
-            output.write(
-                f'"{o.order_no}",'
-                f'"{o.xianyu_order_id or ""}",'
-                f'"{buyer_name}",'
-                f'"{STATUS_LABEL.get(o.status, o.status)}",'
-                f'"{o_time}",'
-                f'"{c_time}",'
-                f'"",,'
-                f'0,0,'
-                f'{o.total_amount},'
-                f'{o.actual_amount},'
-                f'{o.shipping_fee},'
-                f'{o.packaging_fee},'
-                f'{o.service_fee},'
-                f'{o.charity_fee},'
-                f'{o.discount},'
-                f'"{source_label}",'
-                f'"{o.notes or ""}"\n'
-            )
+            row = _order_csv_row(o, buyer_name, o_time, c_time, source_label, ("", "", 0, 0))
         elif len(items) == 1:
             item = items[0]
-            output.write(
-                f'"{o.order_no}",'
-                f'"{o.xianyu_order_id or ""}",'
-                f'"{buyer_name}",'
-                f'"{STATUS_LABEL.get(o.status, o.status)}",'
-                f'"{o_time}",'
-                f'"{c_time}",'
-                f'"{item.product_name or ""}",'
-                f'{item.quantity},'
-                f'{item.unit_price},'
-                f'{item.material_cost},'
-                f'{o.total_amount},'
-                f'{o.actual_amount},'
-                f'{o.shipping_fee},'
-                f'{o.packaging_fee},'
-                f'{o.service_fee},'
-                f'{o.charity_fee},'
-                f'{o.discount},'
-                f'"{source_label}",'
-                f'"{o.notes or ""}"\n'
-            )
+            row = _order_csv_row(o, buyer_name, o_time, c_time, source_label, (
+                item.product_name or "",
+                item.quantity,
+                item.unit_price,
+                item.material_cost,
+            ))
         else:
             # Multi-item → 自选合集
-            names = " / ".join(item.product_name or "" for item in items)
-            qtys = " / ".join(f"{item.product_name or '?'} {item.quantity}个" for item in items)
-            price_sum = sum(item.unit_price or Decimal("0") for item in items)
-            cost_sum = sum(item.material_cost or Decimal("0") for item in items)
-            output.write(
-                f'"{o.order_no}",'
-                f'"{o.xianyu_order_id or ""}",'
-                f'"{buyer_name}",'
-                f'"{STATUS_LABEL.get(o.status, o.status)}",'
-                f'"{o_time}",'
-                f'"{c_time}",'
-                f'"自选合集",'
-                f'"{qtys}",'
-                f'{price_sum},'
-                f'{cost_sum},'
-                f'{o.total_amount},'
-                f'{o.actual_amount},'
-                f'{o.shipping_fee},'
-                f'{o.packaging_fee},'
-                f'{o.service_fee},'
-                f'{o.charity_fee},'
-                f'{o.discount},'
-                f'"{source_label}",'
-                f'"{o.notes or ""}"\n'
-            )
+            qtys = " / ".join(f"{it.product_name or '?'} {it.quantity}个" for it in items)
+            price_sum = sum(it.unit_price or Decimal("0") for it in items)
+            cost_sum = sum(it.material_cost or Decimal("0") for it in items)
+            row = _order_csv_row(o, buyer_name, o_time, c_time, source_label, ("自选合集", qtys, price_sum, cost_sum))
+        output.write(row)
 
     output.seek(0)
     return StreamingResponse(
@@ -479,7 +451,7 @@ def update_order(order_id: int, data: OrderUpdate, db: Session = Depends(get_db)
 
     # Set completed_time when entering a terminal status
     if order.status in TERMINAL_STATUSES and not order.completed_time:
-        order.completed_time = datetime.now(timezone.utc).replace(tzinfo=None)
+        order.completed_time = now_local()
     elif order.status not in TERMINAL_STATUSES:
         order.completed_time = None
 
@@ -533,7 +505,7 @@ def delete_order(order_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "订单不存在")
     prev_status = order.status
     order.status = "cancelled"
-    order.completed_time = datetime.now(timezone.utc).replace(tzinfo=None)
+    order.completed_time = now_local()
     buyer_id = order.buyer_id
 
     # Restore inventory if the order was previously active (not already cancelled)

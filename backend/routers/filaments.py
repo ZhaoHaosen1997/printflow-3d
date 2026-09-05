@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from backend.crud_utils import apply_update, get_or_404
 from backend.database import get_db
 from backend.models import Filament
 from backend.schemas import FilamentCreate, FilamentUpdate, FilamentResponse, MessageResponse
@@ -30,22 +31,17 @@ def create_filament(data: FilamentCreate, db: Session = Depends(get_db)):
 
 @router.get("/{filament_id}", response_model=FilamentResponse)
 def get_filament(filament_id: int, db: Session = Depends(get_db)):
-    filament = db.query(Filament).filter(Filament.id == filament_id).first()
-    if not filament:
-        raise HTTPException(404, "耗材不存在")
+    filament = get_or_404(db, Filament, filament_id, "耗材不存在")
     return filament
 
 
 @router.put("/{filament_id}", response_model=FilamentResponse)
 def update_filament(filament_id: int, data: FilamentUpdate, db: Session = Depends(get_db)):
-    filament = db.query(Filament).filter(Filament.id == filament_id).first()
-    if not filament:
-        raise HTTPException(404, "耗材不存在")
+    filament = get_or_404(db, Filament, filament_id, "耗材不存在")
 
     old_price = filament.price_per_kg
     update_data = data.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(filament, key, value)
+    apply_update(filament, update_data)
 
     if "price_per_kg" in update_data and update_data["price_per_kg"] != old_price:
         sync_product_costs_for_filament(db, filament_id)
@@ -57,9 +53,7 @@ def update_filament(filament_id: int, data: FilamentUpdate, db: Session = Depend
 
 @router.delete("/{filament_id}", response_model=MessageResponse)
 def delete_filament(filament_id: int, db: Session = Depends(get_db)):
-    filament = db.query(Filament).filter(Filament.id == filament_id).first()
-    if not filament:
-        raise HTTPException(404, "耗材不存在")
+    filament = get_or_404(db, Filament, filament_id, "耗材不存在")
     filament.status = "archived"
     db.commit()
     log_business("耗材归档", f"{filament.brand} {filament.material}")

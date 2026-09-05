@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, extract
 from backend.database import get_db
 from backend.models import Order, OrderItem, Product
+from backend.services.stats_service import calc_profit, completed_aggregate, completed_material_cost
 from backend.schemas import SalesOverviewResponse, MonthlySalesItem, ProductSalesItem
 
 router = APIRouter(prefix="/sales", tags=["sales"])
@@ -24,18 +25,13 @@ def sales_overview(
     date_to: str | None = None,
     db: Session = Depends(get_db),
 ):
-    order_agg = _completed_filter(
-        db.query(
-            func.count(Order.id).label("cnt"),
-            func.coalesce(func.sum(Order.actual_amount), 0).label("revenue"),
-            func.coalesce(func.sum(Order.shipping_fee), 0).label("shipping"),
-            func.coalesce(func.sum(Order.packaging_fee), 0).label("packaging"),
-            func.coalesce(func.sum(Order.service_fee), 0).label("service"),
-            func.coalesce(func.sum(Order.charity_fee), 0).label("charity"),
-            func.coalesce(func.sum(Order.discount), 0).label("discount"),
-        ),
-        date_from, date_to,
-    ).one()
+    filters = []
+    if date_from:
+        filters.append(Order.completed_time >= date_from)
+    if date_to:
+        filters.append(Order.completed_time <= date_to + " 23:59:59")
+
+    order_agg = completed_aggregate(db, *filters)
 
     total_orders = order_agg.cnt
     total_revenue = Decimal(str(order_agg.revenue))
@@ -45,15 +41,12 @@ def sales_overview(
     total_charity_fee = Decimal(str(order_agg.charity))
     total_discount = Decimal(str(order_agg.discount))
 
-    material_cost_row = _completed_filter(
-        db.query(
-            func.coalesce(func.sum(OrderItem.material_cost * OrderItem.quantity), 0)
-        ).join(Order, OrderItem.order_id == Order.id),
-        date_from, date_to,
-    ).scalar()
-    total_material_cost = Decimal(str(material_cost_row))
+    total_material_cost = Decimal(str(completed_material_cost(db, *filters)))
 
-    total_profit = total_revenue - total_material_cost - total_shipping_fee - total_packaging_fee - total_service_fee - total_charity_fee
+    total_profit = calc_profit(
+        total_revenue, total_material_cost,
+        total_shipping_fee, total_packaging_fee, total_service_fee, total_charity_fee,
+    )
 
     return SalesOverviewResponse(
         total_orders=total_orders,
@@ -108,12 +101,11 @@ def sales_monthly(
         row = order_map.get(m)
         if row:
             revenue = Decimal(str(row.revenue))
-            shipping = Decimal(str(row.shipping))
-            packaging = Decimal(str(row.packaging))
-            service = Decimal(str(row.service))
-            charity = Decimal(str(row.charity))
             material_cost = cost_map.get(m, Decimal("0"))
-            profit = revenue - material_cost - shipping - packaging - service - charity
+            profit = calc_profit(
+                revenue, material_cost,
+                row.shipping, row.packaging, row.service, row.charity,
+            )
             result.append(MonthlySalesItem(
                 month=m,
                 orders=row.orders,
@@ -191,7 +183,7 @@ def sales_by_product(
             product_stats[pid] = {
                 "product_id": pid,
                 "product_name": product.name if product else (r.product_name or f"商品#{pid}"),
-                "category": product.category if product else "other",
+                "category": (product.category if product else None) or "other",
                 "quantity": 0,
                 "revenue": Decimal("0"),
                 "material_cost": Decimal("0"),
@@ -204,7 +196,7 @@ def sales_by_product(
 
     result = []
     for ps in product_stats.values():
-        ps["profit"] = ps["revenue"] - ps["material_cost"] - ps.pop("fees")
+        ps["profit"] = calc_profit(ps["revenue"], ps["material_cost"], ps.pop("fees"))
         result.append(ProductSalesItem(**ps))
 
     reverse = sort_by not in ("profit", "quantity", "revenue")

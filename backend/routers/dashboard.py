@@ -4,7 +4,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from backend.database import get_db
+from backend.utils.time import now_local
 from backend.models import Order, OrderItem, Inventory, Product, PrintTask, Buyer
+from backend.services.stats_service import (
+    calc_profit, completed_aggregate, completed_material_cost, fees_total,
+)
 from backend.schemas import DashboardSummary, RecentOrder, PrintTaskStats
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -27,36 +31,18 @@ def dashboard_summary(db: Session = Depends(get_db)):
         .scalar()
     ) or 0
 
-    now = datetime.utcnow()
-    month_start = datetime(now.year, now.month, 1)
+    # 北京时间的自然月初（历史上用 UTC 会导致每月 1 日 0-8 点订单计入上月）
+    today = now_local()
+    month_start = datetime(today.year, today.month, 1)
 
-    order_agg = db.query(
-        func.coalesce(func.sum(Order.actual_amount), 0).label("revenue"),
-        func.coalesce(func.sum(Order.shipping_fee), 0).label("shipping"),
-        func.coalesce(func.sum(Order.packaging_fee), 0).label("packaging"),
-        func.coalesce(func.sum(Order.service_fee), 0).label("service"),
-        func.coalesce(func.sum(Order.charity_fee), 0).label("charity"),
-    ).filter(
-        Order.status == "completed",
-        Order.completed_time >= month_start,
-    ).one()
-
+    order_agg = completed_aggregate(db, Order.completed_time >= month_start)
     monthly_revenue = Decimal(str(order_agg.revenue))
-    monthly_fees = (
-        Decimal(str(order_agg.shipping))
-        + Decimal(str(order_agg.packaging))
-        + Decimal(str(order_agg.service))
-        + Decimal(str(order_agg.charity))
+    monthly_fees = fees_total(
+        order_agg.shipping, order_agg.packaging, order_agg.service, order_agg.charity
     )
 
-    material_cost_row = db.query(
-        func.coalesce(func.sum(OrderItem.material_cost * OrderItem.quantity), 0)
-    ).join(Order, OrderItem.order_id == Order.id).filter(
-        Order.status == "completed",
-        Order.completed_time >= month_start,
-    ).scalar()
-    monthly_cost = Decimal(str(material_cost_row)) + monthly_fees
-    monthly_profit = monthly_revenue - monthly_cost
+    monthly_cost = Decimal(str(completed_material_cost(db, Order.completed_time >= month_start))) + monthly_fees
+    monthly_profit = calc_profit(monthly_revenue, monthly_cost)
 
     task_stats_rows = db.query(
         PrintTask.status,

@@ -10,7 +10,9 @@ from backend.schemas import (
     MessageResponse,
 )
 from backend.services.logger_service import log_business, log_error
+from backend.crud_utils import apply_update, get_or_404
 from backend.services.inventory_service import restore_inventory
+from backend.utils.time import now_local
 
 router = APIRouter(prefix="/print-tasks", tags=["print-tasks"])
 
@@ -83,21 +85,15 @@ def create_print_task(data: PrintTaskCreate, db: Session = Depends(get_db)):
 
 @router.get("/{task_id}", response_model=PrintTaskResponse)
 def get_print_task(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(PrintTask).filter(PrintTask.id == task_id).first()
-    if not task:
-        raise HTTPException(404, "打印任务不存在")
+    task = get_or_404(db, PrintTask, task_id, "打印任务不存在")
     return task
 
 
 @router.put("/{task_id}", response_model=PrintTaskResponse)
 def update_print_task(task_id: int, data: PrintTaskUpdate, db: Session = Depends(get_db)):
-    task = db.query(PrintTask).filter(PrintTask.id == task_id).first()
-    if not task:
-        raise HTTPException(404, "打印任务不存在")
+    task = get_or_404(db, PrintTask, task_id, "打印任务不存在")
 
-    update_data = data.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(task, key, value)
+    apply_update(task, data.model_dump(exclude_unset=True))
 
     db.commit()
     db.refresh(task)
@@ -106,14 +102,12 @@ def update_print_task(task_id: int, data: PrintTaskUpdate, db: Session = Depends
 
 @router.post("/{task_id}/start", response_model=PrintTaskResponse)
 def start_print_task(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(PrintTask).filter(PrintTask.id == task_id).first()
-    if not task:
-        raise HTTPException(404, "打印任务不存在")
+    task = get_or_404(db, PrintTask, task_id, "打印任务不存在")
     if task.status != "pending":
         raise HTTPException(400, f"只有待处理状态的任务可以开始，当前状态: {task.status}")
 
     task.status = "printing"
-    task.started_at = datetime.utcnow()
+    task.started_at = now_local()
     db.commit()
     db.refresh(task)
     log_business("打印任务开始", task.task_no)
@@ -122,9 +116,7 @@ def start_print_task(task_id: int, db: Session = Depends(get_db)):
 
 @router.post("/{task_id}/complete", response_model=PrintTaskResponse)
 def complete_print_task(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(PrintTask).filter(PrintTask.id == task_id).first()
-    if not task:
-        raise HTTPException(404, "打印任务不存在")
+    task = get_or_404(db, PrintTask, task_id, "打印任务不存在")
     if task.status not in ("pending", "printing"):
         raise HTTPException(400, f"当前状态不可完成，状态: {task.status}")
 
@@ -133,7 +125,7 @@ def complete_print_task(task_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "关联配方不存在")
 
     task.status = "done"
-    task.completed_at = datetime.utcnow()
+    task.completed_at = now_local()
 
     recipe.print_count += 1
 
@@ -150,9 +142,7 @@ def complete_print_task(task_id: int, db: Session = Depends(get_db)):
 
 @router.post("/{task_id}/fail", response_model=PrintTaskResponse)
 def fail_print_task(task_id: int, data: PrintTaskFailRequest = None, db: Session = Depends(get_db)):
-    task = db.query(PrintTask).filter(PrintTask.id == task_id).first()
-    if not task:
-        raise HTTPException(404, "打印任务不存在")
+    task = get_or_404(db, PrintTask, task_id, "打印任务不存在")
     if task.status not in ("pending", "printing"):
         raise HTTPException(400, f"当前状态不可标记失败，状态: {task.status}")
 
@@ -167,9 +157,7 @@ def fail_print_task(task_id: int, data: PrintTaskFailRequest = None, db: Session
 
 @router.post("/{task_id}/cancel", response_model=PrintTaskResponse)
 def cancel_print_task(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(PrintTask).filter(PrintTask.id == task_id).first()
-    if not task:
-        raise HTTPException(404, "打印任务不存在")
+    task = get_or_404(db, PrintTask, task_id, "打印任务不存在")
     if task.status not in ("pending", "printing"):
         raise HTTPException(400, f"当前状态不可取消，状态: {task.status}")
 

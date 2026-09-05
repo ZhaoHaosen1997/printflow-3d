@@ -17,6 +17,7 @@ from backend.services.product_service import (
     calculate_recipe_cost, create_recipe, update_recipe, delete_recipe,
     set_default_recipe, sync_product_material_cost, replace_recipe_filaments,
 )
+from backend.config import IMAGES_DIR
 from backend.services.logger_service import log_business
 
 router = APIRouter(tags=["products"])
@@ -173,8 +174,6 @@ async def upload_product_image(file: UploadFile = File(...)):
     ext_map = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif"}
     ext = ext_map.get(file.content_type, ".jpg")
 
-    BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    IMAGES_DIR = os.path.join(BASE_DIR, "data", "images")
     os.makedirs(IMAGES_DIR, exist_ok=True)
 
     filename = f"{uuid.uuid4().hex[:12]}{ext}"

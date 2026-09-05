@@ -1,10 +1,11 @@
-from datetime import datetime
 from sqlalchemy import (
     Column, Integer, String, Float, Boolean, JSON, Text, DateTime,
     ForeignKey, Index, Numeric, text, Table, UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from backend.database import Base
+from backend.constants import ORDER_STATUS  # noqa: F401 单一来源再导出
+from backend.utils.time import now_local
 
 
 product_games = Table(
@@ -24,8 +25,8 @@ class Game(Base):
     icon = Column(String(50), nullable=True)
     sort_order = Column(Integer, default=0)
     status = Column(String(20), default="active")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_local)
+    updated_at = Column(DateTime, default=now_local, onupdate=now_local)
 
     products = relationship("Product", secondary=product_games, back_populates="games")
 
@@ -38,8 +39,8 @@ class Category(Base):
     slug = Column(String(100), nullable=False, unique=True)
     sort_order = Column(Integer, default=0)
     status = Column(String(20), default="active")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_local)
+    updated_at = Column(DateTime, default=now_local, onupdate=now_local)
 
 
 class Color(Base):
@@ -51,8 +52,8 @@ class Color(Base):
     type = Column(String(20), nullable=False)
     swatches = Column(JSON, nullable=False)
     combo_of = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_local)
+    updated_at = Column(DateTime, default=now_local, onupdate=now_local)
 
 
 class Filament(Base):
@@ -63,8 +64,8 @@ class Filament(Base):
     material = Column(String(50), nullable=False)
     price_per_kg = Column(Numeric(10, 2), nullable=False)
     status = Column(String(20), default="active")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_local)
+    updated_at = Column(DateTime, default=now_local, onupdate=now_local)
 
     recipe_filaments = relationship("PrintRecipeFilament", back_populates="filament")
 
@@ -88,8 +89,8 @@ class Product(Base):
     sort_order = Column(Integer, default=0)
     search_keywords = Column(JSON, nullable=True)
     status = Column(String(20), default="active")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_local)
+    updated_at = Column(DateTime, default=now_local, onupdate=now_local)
 
     recipes = relationship("PrintRecipe", back_populates="product", order_by="PrintRecipe.print_count.desc()")
     games = relationship("Game", secondary=product_games, back_populates="products")
@@ -115,8 +116,8 @@ class PrintRecipe(Base):
     notes = Column(Text, nullable=True)
     is_default = Column(Boolean, default=False)
     status = Column(String(20), default="active")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_local)
+    updated_at = Column(DateTime, default=now_local, onupdate=now_local)
 
     product = relationship("Product", back_populates="recipes")
     recipe_filaments = relationship("PrintRecipeFilament", back_populates="recipe", cascade="all, delete-orphan")
@@ -129,7 +130,7 @@ class PrintRecipeFilament(Base):
     recipe_id = Column(Integer, ForeignKey("print_recipes.id", ondelete="CASCADE"), nullable=False)
     filament_id = Column(Integer, ForeignKey("filaments.id"), nullable=False)
     grams = Column(Numeric(10, 2), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_local)
 
     recipe = relationship("PrintRecipe", back_populates="recipe_filaments")
     filament = relationship("Filament", back_populates="recipe_filaments")
@@ -147,19 +148,8 @@ class Buyer(Base):
     total_amount = Column(Numeric(10, 2), default=0)
     tags = Column(JSON, nullable=True)
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
-# Order status constants
-ORDER_STATUS = {
-    "pending_ship": "待发货",
-    "shipped": "已发货",
-    "completed": "交易成功",
-    "cancelled": "已取消",
-    "returned": "退货",
-    "archived": "已归档",
-}
+    created_at = Column(DateTime, default=now_local)
+    updated_at = Column(DateTime, default=now_local, onupdate=now_local)
 
 
 class Order(Base):
@@ -188,8 +178,8 @@ class Order(Base):
     province = Column(String(50), nullable=True)
     notes = Column(Text, nullable=True)
     source = Column(String(20), default="manual")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_local)
+    updated_at = Column(DateTime, default=now_local, onupdate=now_local)
 
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     buyer = relationship("Buyer")
@@ -205,7 +195,7 @@ class OrderItem(Base):
     quantity = Column(Integer, default=1)
     unit_price = Column(Numeric(10, 2), default=0)
     material_cost = Column(Numeric(10, 2), default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_local)
 
     order = relationship("Order", back_populates="items")
     product = relationship("Product")
@@ -218,8 +208,8 @@ class Inventory(Base):
     product_id = Column(Integer, ForeignKey("products.id"), unique=True, nullable=False)
     quantity = Column(Integer, default=0)
     warning_threshold = Column(Integer, default=5)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_local)
+    updated_at = Column(DateTime, default=now_local, onupdate=now_local)
 
     product = relationship("Product")
 
@@ -233,7 +223,7 @@ class PrintTask(Base):
     status = Column(String(20), default="pending", index=True)
     fail_reason = Column(Text, nullable=True)
     retry_count = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_local)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     notes = Column(Text, nullable=True)
@@ -249,8 +239,8 @@ class Printer(Base):
     name = Column(String(100), nullable=False)
     status = Column(String(20), default="idle")
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_local)
+    updated_at = Column(DateTime, default=now_local, onupdate=now_local)
 
 
 class Setting(Base):
@@ -261,5 +251,5 @@ class Setting(Base):
     value = Column(Text, nullable=False)
     value_type = Column(String(20), default="string")
     description = Column(String(200), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_local)
+    updated_at = Column(DateTime, default=now_local, onupdate=now_local)

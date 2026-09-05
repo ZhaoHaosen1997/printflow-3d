@@ -4,13 +4,14 @@ from datetime import datetime
 from decimal import Decimal
 from sqlalchemy.orm import Session
 from backend.models import Product
+from backend.constants import ORDER_STATUS
 from backend.services.logger_service import log_parser, log_parser_warn
 
 
+# 闲鱼文本仅出现这三种状态；顺序即匹配优先级（派生自 constants 单一来源）
 STATUS_MAP = {
-    "待发货": "pending_ship",
-    "已发货": "shipped",
-    "交易成功": "completed",
+    ORDER_STATUS[k]: k
+    for k in ("pending_ship", "shipped", "completed")
 }
 
 # Pattern: status → 订单编号 → order number (whitespace-insensitive)

@@ -9,10 +9,9 @@ from playwright.sync_api import sync_playwright
 from sqlalchemy.orm import Session
 
 from backend.models import Product, Color, Game, Category
+from backend.config import BASE_DIR, IMAGES_DIR
 from backend.services.logger_service import log_business, log_error
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-IMAGES_DIR = os.path.join(BASE_DIR, "data", "images")
 TEMPLATES_DIR = os.path.join(BASE_DIR, "backend", "templates", "posters")
 
 CATEGORY_TITLES = {

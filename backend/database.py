@@ -1,9 +1,10 @@
 import os
+
+from backend.config import BASE_DIR, DATA_DIR
+from backend.constants import STATUS_LABEL_TO_KEY
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(BASE_DIR, "data")
 # PRINTFLOW_DB_PATH 仅供测试脚本指向临时库，生产不设置
 DB_PATH = os.getenv("PRINTFLOW_DB_PATH") or os.path.join(DATA_DIR, "app.db")
 
@@ -115,14 +116,7 @@ def fix_color_ids(db):
         print(f"Fixed {updated} color_id(s)")
 
 
-STATUS_MIGRATION = {
-    "待发货": "pending_ship",
-    "已发货": "shipped",
-    "交易成功": "completed",
-    "已取消": "cancelled",
-    "退货": "returned",
-    "已归档": "archived",
-}
+STATUS_MIGRATION = STATUS_LABEL_TO_KEY  # 单一来源：backend/constants.py
 
 
 def fix_order_statuses(db):
